@@ -1,6 +1,14 @@
 /*
  * parser-yang.y --
  *
+ *      Syntax rules for parsing the YANG MIB module language.
+ *
+ * Copyright (c) 1999 Frank Strauss, Technical University of Braunschweig.
+ *
+ * See the file "COPYING" for information on usage and redistribution
+ * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+ *
+ *  Authors: Kaloyan Kanev, Siarhei Kuryla
  */
 
 %{
@@ -70,8 +78,19 @@ static Import *currentImport = NULL;
 static Type *currentType = NULL;
 static YangNode *currentNode = NULL;
 static Must *currentMust = NULL;
+static Revision *currentRevision = NULL;
 static Macro *macroPtr = NULL;
 static SmiBasetype defaultBasetype = SMI_BASETYPE_UNKNOWN;
+
+/*
+ *  Some boolean flags that are used while parsing to check the uniqness of the child nodes;
+ */
+static int extensionFlags[4];
+
+#define FLAG_EXT_ARGUMENT       0
+#define FLAG_EXT_STATUS         1
+#define FLAG_EXT_DESCRIPTION    2
+#define FLAG_EXT_REFERENCE      3
 
 /* The declaration stack is used to determine what is the parrent
  * statement of the current one. It helps to write generic
@@ -160,11 +179,6 @@ static Type *findType(char* spec)
         return typePtr;
 }
 
-//static Type * findTypeNode(char *name)
-//{
-//	return NULL;	
-//}
-
 static void
 checkTypes(Parser *parserPtr, Module *modulePtr)
 {
@@ -188,8 +202,6 @@ checkTypes(Parser *parserPtr, Module *modulePtr)
 	smiCheckNamedNumberSubtyping(parserPtr, typePtr);
     }
 }
-
-
 
 static time_t
 checkDate(Parser *parserPtr, char *date)
@@ -317,14 +329,26 @@ void setDescription(char *description)
 		case SMI_DECL_YANG_MODULE:
 			if(!currentModule->export.description)
 				setModuleDescription(currentModule, description, currentParser);
-			else
+			else {
 				smiPrintError(currentParser,
 					      ERR_REDEFINED_DESCRIPTION,
 					      NULL);
+                        }
 			break;
-		case SMI_DECL_REVISION:
-			addRevision(date, description, currentParser);
+                case SMI_DECL_REVISION:
+                        // there is no need to check whether the description is duplicated
+                        // because according to the grammar it can not occur here more than once
+			setRevisionDescription(currentRevision, description, currentParser);
 			break;
+                case SMI_DECL_EXTENSION:
+			if(!currentNode->export.description) {
+				setYangNodeDescription(currentNode, description);
+			} else {
+				smiPrintError(currentParser,
+					      ERR_REDEFINED_DESCRIPTION,
+					      NULL);
+                        }
+                        break;
 		case SMI_DECL_TYPEDEF:
 			setTypeDescription(currentType, description, currentParser);
 			break;
@@ -338,11 +362,10 @@ void setDescription(char *description)
 		case SMI_DECL_AUGMENT: 
 		case SMI_DECL_GROUPING:
 			setYangNodeDescription(currentNode, description);
-			//printf("DEBUGGG %s\n",currentNode->export.description);
 			break;
 		case SMI_DECL_MUST_STATEMENT:
 			setMustDescription(currentMust, description);
-			break;
+			break;                 
 		default:
 			//TODO print error
 			printf("DEBUGG: OOPS wrong description DECL %d, at line %d\n",topDecl(),currentParser->line);
@@ -363,7 +386,7 @@ void setPrefix(char *prefix)
 					      NULL);
 			break;
 		case SMI_DECL_IMPORT:
-				setImportPrefix(currentImport, prefix);
+			setImportPrefix(currentImport, prefix);
 			break;
 		default:
 			//TODO print error
@@ -385,6 +408,16 @@ void setReference(char *reference)
 					      ERR_REDEFINED_REFERENCE,
 					      NULL);
 			break;
+                case SMI_DECL_EXTENSION:
+			if(!currentNode->export.reference) {
+                                setYangNodeReference(currentNode, reference);
+			} else {
+				smiPrintError(currentParser,
+					      ERR_REDEFINED_REFERENCE,
+					      NULL);
+                        }
+                        break;
+
 		case SMI_DECL_TYPEDEF:
 			setTypeReference(currentType, reference, currentParser);
 			break;
@@ -417,7 +450,15 @@ void setStatus(SmiStatus status)
 		case SMI_DECL_LEAF:
 		case SMI_DECL_LIST:		
 		case SMI_DECL_CONTAINER:
-			setYangNodeStatus(currentNode, status);
+                case SMI_DECL_EXTENSION:
+                        if (!extensionFlags[FLAG_EXT_STATUS]) {
+                                setYangNodeStatus(currentNode, status);
+                                extensionFlags[FLAG_EXT_STATUS] = 1;
+                        } else {                               
+                                smiPrintError(currentParser,
+                                              ERR_REDEFINED_ELEMENT,
+                                              "status");
+                        }
 			break;
 		default:
 			//TODO print error
@@ -644,7 +685,7 @@ void setErrorAppTag(char *err)
 %token <rc>enumerationKeyword
 %token <rc>bitsKeyword
 %token <rc>binaryKeyword
-%token <rc>keyrefKeyword
+%token <rc>leafrefKeyword
 %token <rc>emptyKeyword
 %token <rc>anyXMLKeyword
 %token <rc>deprecatedKeyword
@@ -658,8 +699,23 @@ void setErrorAppTag(char *err)
 %token <rc>rpcKeyword
 %token <rc>notificationKeyword
 %token <rc>argumentKeyword
+%token <rc>yangversionKeyword
+%token <rc>baseKeyword
+%token <rc>deviationKeyword
+%token <rc>deviateKeyword
+%token <rc>featureKeyword
+%token <rc>identityKeyword
+%token <rc>ifFeatureKeyword
+%token <rc>positionKeyword
+%token <rc>presenceKeyword
+%token <rc>refineKeyword
+%token <rc>requireInstanceKeyword
+%token <rc>yinElementKeyword
+
 
 %token <text>identifier
+%token <text>dateString
+%token <text>yangVersion
 %token <text>qString
 %token <text>uqString
 %token <text>decimalNumber
@@ -676,8 +732,11 @@ void setErrorAppTag(char *err)
 %type <rc>commonStatement
 %type <rc>dataDefStatement
 %type <rc>extensionStatement
+%type <rc>extensionStatementBody
 %type <rc>extensionSubstatement
 %type <rc>extensionSubstatement_0n
+%type <rc>argumentStatement
+%type <rc>argumentStatementBody
 %type <rc>linkageStatement
 %type <rc>linkageStatement_0n
 %type <rc>moduleMetaStatement
@@ -698,7 +757,10 @@ void setErrorAppTag(char *err)
 %type <rc>descriptionStatement
 %type <rc>revisionStatement
 %type <rc>revisionStatement_0n
+%type <rc>revisionDescriptionStatement
 %type <rc>importStatement
+%type <rc>includeStatement
+%type <rc>includeStatementBody
 %type <rc>prefixStatement
 %type <rc>typedefStatement
 %type <rc>typedefSubstatement
@@ -714,12 +776,13 @@ void setErrorAppTag(char *err)
 %type <rc>length
 %type <date>date
 %type <text>string
+%type <text>prefix
 %type <rc>enumSpec
 %type <rc>enum
 %type <rc>enum_0n
-%type <rc>optExtension
-%type <rc>optExtensionSubstatement0_n
-%type <rc>optExtensionSubstatement
+%type <rc>stmtEnd
+%type <rc>unknownStatement0_n
+%type <rc>unknownStatement
 %type <rc>error_app_tag
 %type <rc>error_message
 %type <rc>err
@@ -795,7 +858,6 @@ yangFile:		moduleStatement
 			     * parsed modules.
 			     */
 			    $$ = $1;
-		printf("DEBUGGG finished parsing module\n");
 			}
 	|
 			submoduleStatement
@@ -805,13 +867,12 @@ yangFile:		moduleStatement
 			     * parsed modules.
 			     */
 			    $$ = $1;
-		printf("DEBUGGG finished parsing submodule\n");
 			}
 	;
 
 moduleStatement:	moduleKeyword identifier
 			{
-				thisParserPtr->modulePtr = findModuleByName($2);
+                            thisParserPtr->modulePtr = findModuleByName($2);
 			    if (!thisParserPtr->modulePtr) {
 				thisParserPtr->modulePtr =
 				    addModule($2,
@@ -836,14 +897,15 @@ moduleStatement:	moduleKeyword identifier
 			    thisParserPtr->modulePtr->numModuleIdentities = 0;
 			    thisParserPtr->firstIndexlabelPtr = NULL;
 			    thisParserPtr->identityObjectName = NULL;
-				$$ = 1;
+                            $$ = 1;
 
-				currentParser = thisParserPtr;
-				currentModule = thisModulePtr;
+                            currentParser = thisParserPtr;
+                            currentModule = thisModulePtr;
 
 			   pushDecl(SMI_DECL_YANG_MODULE);
 			}
 			'{'
+                                stmtSep
 				moduleHeaderStatement_0n
 				linkageStatement_0n
 				moduleMetaStatement_0n
@@ -857,7 +919,7 @@ moduleStatement:	moduleKeyword identifier
 
 submoduleStatement:	submoduleKeyword identifier
 			{
-				thisParserPtr->modulePtr = findModuleByName($2);
+                            thisParserPtr->modulePtr = findModuleByName($2);
 			    if (!thisParserPtr->modulePtr) {
 				thisParserPtr->modulePtr =
 				    addModule($2,
@@ -882,10 +944,10 @@ submoduleStatement:	submoduleKeyword identifier
 			    thisParserPtr->modulePtr->numModuleIdentities = 0;
 			    thisParserPtr->firstIndexlabelPtr = NULL;
 			    thisParserPtr->identityObjectName = NULL;
-				$$ = 1;
+                            $$ = 1;
 
-				currentParser = thisParserPtr;
-				currentModule = thisModulePtr;
+                            currentParser = thisParserPtr;
+                            currentModule = thisModulePtr;
 
 			   pushDecl(SMI_DECL_YANG_MODULE);
 			}
@@ -901,27 +963,36 @@ submoduleStatement:	submoduleKeyword identifier
 			}
 	;
 
-moduleHeaderStatement_0n:	moduleHeaderStatement
+moduleHeaderStatement_0n:	moduleHeaderStatement0_n
 		     	{
-				$$ = 1;
-			}
-		|
-			moduleHeaderStatement moduleHeaderStatement_0n
-			{
-				$$ = 1 + $2;
+                            if (!currentModule->export.XMLNamespace) {
+                                smiPrintError(parserPtr, ERR_NAMESPACE_MISSING, NULL);
+                            }
+                            if (!currentModule->export.prefix) {
+                                smiPrintError(parserPtr, ERR_PREFIX_MISSING, NULL);
+                            }   
+                            $$ = 1;
 			}
 		;
 
-moduleHeaderStatement:	namespaceStatement
-		|
-			prefixStatement
+moduleHeaderStatement0_n:
+                |
+                    moduleHeaderStatement moduleHeaderStatement0_n
+                ;
+
+moduleHeaderStatement:	yangVersionStatement stmtSep
+                |
+                        namespaceStatement stmtSep
+                |
+			prefixStatement stmtSep
 		;
+
 moduleMetaStatement_0n:	
 		     	{
 				$$ = 1;
 			}
 		|
-			moduleMetaStatement_0n moduleMetaStatement 
+			moduleMetaStatement_0n moduleMetaStatement stmtSep
 			{
 				$$ = 1 + $2;
 			}
@@ -929,12 +1000,13 @@ moduleMetaStatement_0n:
 
 moduleMetaStatement:	organizationStatement
 		|
-			descriptionStatement
+			contactStatement 
 		|
-			contactStatement
+			descriptionStatement
 		|
 			referenceStatement
 		;
+
 linkageStatement_0n:	{
 				$$ = 1;
 			}
@@ -945,19 +1017,18 @@ linkageStatement_0n:	{
 			}
 		;
 
-linkageStatement:	includeStatement
+linkageStatement:	includeStatement stmtSep
 		|
-			importStatement
+			importStatement stmtSep
 		;
 
-revisionStatement_0n:	revisionStatement
-		     	{
+revisionStatement_0n:	{
 				$$ = 1;
 			}
 		|
-			revisionStatement revisionStatement_0n
+			revisionStatement_0n revisionStatement stmtSep
 			{
-				$$ = 1 + $2;
+				$$ = $1 + 1;
 			}
 		;
 
@@ -966,23 +1037,23 @@ bodyStatement_0n:
 				$$ = 1;
 			}
 		|
-			bodyStatement_0n bodyStatement
+			bodyStatement_0n bodyStatement stmtSep
 			{
-				$$ = 1 + $2;
+				$$ = $1 + 1;
 			}
 		;
 
 bodyStatement:		extensionStatement
+		|
+			typedefStatement
+		|
+			groupingStatement
 	     	|
 	     		dataDefStatement
 		|
 			rpcStatement
 		|
 			notificationStatement
-		|
-			groupingStatement
-		|
-			typedefStatement
 		;
 
 dataDefStatement:	containerStatement
@@ -1002,7 +1073,7 @@ dataDefStatement:	containerStatement
 			augmentStatement
 		;
 
-commonStatement:	descriptionStatement
+commonStatement:	descriptionStatement 
        		|
 			statusStatement
 		|
@@ -1011,46 +1082,79 @@ commonStatement:	descriptionStatement
 			configStatement
 		;	       
 
-descriptionStatement:	descriptionKeyword string optExtension
+organizationStatement:	organizationKeyword string stmtEnd
 			{
-				setDescription($2);		 	
-				$$ = 1;
+                                if (!currentModule->export.organization) {
+                                        setModuleOrganization(currentModule, $2);
+                                } else {
+                                        smiPrintError(currentParser,
+                                                      ERR_REDEFINED_ORGANIZATION,
+                                                      NULL);
+                                }				
+                                $$ = 1;
 			}
 	;
 
-organizationStatement:	organizationKeyword string optExtension
+contactStatement:	contactKeyword string stmtEnd
 			{
-				setModuleOrganization(currentModule, $2);		 	
-				$$ = 1;
+                                if (!currentModule->export.contactinfo) {
+                                        setModuleContactInfo(currentModule, $2);
+                                } else {
+                                        smiPrintError(currentParser,
+                                                      ERR_REDEFINED_CONTACT,
+                                                      NULL);
+                                }
+                                $$ = 1;
 			}
 	;
 
-contactStatement:	contactKeyword string optExtension
+descriptionStatement:	descriptionKeyword string stmtEnd
 			{
-				setModuleContactInfo(currentModule, $2);		 	
-				$$ = 1;
+                                setDescription($2);
+                                $$ = 1;
 			}
 	;
 
-referenceStatement:	referenceKeyword string optExtension
+referenceStatement:	referenceKeyword string stmtEnd
 			{
 				setReference($2);		 	
 				$$ = 1;
 			}
 	;
 
-statusStatement:	statusKeyword status optExtension
+statusStatement:	statusKeyword status stmtEnd
 			{
-				setStatus($2);		 	
-				$$ = 1;
+                                setStatus($2);
+        			$$ = 1;
 			}
 	;
 
-namespaceStatement:	namespaceKeyword string optExtension
+namespaceStatement:	namespaceKeyword string stmtEnd
 		  	{
-				setModuleXMLNamespace(currentModule, $2);
+                                if (!currentModule->export.XMLNamespace) {
+                                        setModuleXMLNamespace(currentModule, $2);
+                                } else {
+                                        smiPrintError(currentParser,
+                                              ERR_REDEFINED_NAMESPACE,
+                                              NULL);
+                                }
 			}
 	;
+
+yangVersionStatement:
+        |
+                        yangversionKeyword yangVersion stmtEnd
+		  	{
+                                if (!currentModule->export.yangVers) {
+                                        setModuleYangVersion(currentModule, $2);
+                                } else {
+                                        smiPrintError(currentParser,
+                                                      ERR_REDEFINED_YANGVERSION,
+                                                      NULL);
+                                }
+			}
+	;
+
 status:		deprecatedKeyword
 		{
 			$$ = SMI_STATUS_DEPRECATED;
@@ -1067,26 +1171,40 @@ status:		deprecatedKeyword
 		}
 	;
 
-prefixStatement:	prefixKeyword string optExtension
+prefixStatement:	prefixKeyword prefix stmtEnd
 			{
 				setPrefix($2);
 			}
 	;
 
-revisionStatement:	revisionKeyword date
+revisionStatement:	revisionKeyword date ';' 
 			{
 				date = $2;
-				pushDecl(SMI_DECL_REVISION)
+                                currentRevision = addRevision(date, NULL, currentParser);
+                        }
+                |
+                        revisionKeyword date
+			{
+				date = $2;
+				pushDecl(SMI_DECL_REVISION);
+                                currentRevision = addRevision(date, NULL, currentParser);
 			}
 			'{'
-				descriptionStatement
+                                stmtSep
+				revisionDescriptionStatement
 			'}'
 			{
 				popDecl();
 			}
-	;
+                ;
 
-date: 	string
+
+revisionDescriptionStatement: 
+                        |
+                                descriptionStatement stmtSep 
+                        ;
+
+date: 	dateString
 	{
 		$$ = checkDate(currentParser, $1);
 	}
@@ -1102,12 +1220,10 @@ importStatement: importKeyword identifier
 			}
 			if(m)
 			{		    
-					Import *im = addImport("",currentParser);
-					setImportModulename(im, m->export.name);
-					currentImport = im;
-			}
-			else
-			{
+                                Import *im = addImport("", currentParser);
+                                setImportModulename(im, m->export.name);
+                                currentImport = im;
+			} else {
 				smiPrintError(thisParserPtr,
 					      ERR_IMPORT_NOT_FOUND,
 					      $2);
@@ -1115,7 +1231,8 @@ importStatement: importKeyword identifier
 			pushDecl(SMI_DECL_IMPORT);
 		}
 		'{'
-			prefixStatement
+                        stmtSep
+			prefixStatement stmtSep
 		'}'
 		{
 			popDecl();
@@ -1124,45 +1241,32 @@ importStatement: importKeyword identifier
 
 includeStatement: includeKeyword identifier
 		{
-			Module *m = findModuleByName($2);
-			
-			if(!m)
-			{
-				m = loadModule($2, currentParser);
-			}
-			if(m)
-			{		    
-					Import *im = addImport("",currentParser);
-					setImportModulename(im, m->export.name);
-					currentImport = im;
-			}
-			else
-			{
-				smiPrintError(thisParserPtr,
-					      ERR_IMPORT_NOT_FOUND,
-					      $2);
-			}
-			pushDecl(SMI_DECL_IMPORT);
+			pushDecl(SMI_DECL_INCLUDE);
 		}
-		'{'
-			prefixStatement
-		'}'
+                includeStatementBody
 		{
 			popDecl();
 		}
         ;
 
+includeStatementBody:         ';'
+                |
+                    '{'
+                               stmtSep
+                    '}'
+                ;
+
 typedefStatement:	typedefKeyword identifier
 			{
 				pushDecl(SMI_DECL_TYPEDEF);
-				currentNode = addYangNode($2,SMI_DECL_TYPEDEF, currentNode, currentModule);
+				currentNode = addYangNode($2, SMI_DECL_TYPEDEF, currentNode, currentModule);
 			}
 			'{'
+                                stmtSep
 				typedefSubstatement_0n
 			'}'
 			{
 				popDecl();
-				//currentType = NULL;
 			}
 	;
 
@@ -1171,9 +1275,9 @@ typedefSubstatement_0n:	typedefSubstatement
 				$$ = 1;
 			}
 		|
-		       typedefSubstatement typedefSubstatement_0n
+		       typedefSubstatement_0n typedefSubstatement stmtSep
 			{
-				$$ = 1 + $2;
+				$$ = 1 + $1;
 			}
 	;				
 
@@ -1314,8 +1418,9 @@ refinedBasetype:	float32Keyword numRestriction
 				setType(SMI_BASETYPE_BOOLEAN, smiHandle->typeBooleanPtr, NULL);
 			}
 		|
-			keyrefKeyword path
+			leafrefKeyword path
 			{
+                                // TODO: in version 03 'keyref' has been changed to 'leafref'
 				setType(SMI_BASETYPE_KEYREF, smiHandle->typeKeyrefPtr, NULL);
 			}
 		|
@@ -1394,7 +1499,7 @@ enum: enumKeyword string ';'
     |
 	enumKeyword string
 	'{'
-		valueKeyword string optExtension
+		valueKeyword string stmtEnd
 	'}'
 	;
 
@@ -1453,31 +1558,39 @@ err: 		error_app_tag error_message
 		error_app_tag
 	;
 
-error_message: error_messageKeyword string optExtension
+error_message: error_messageKeyword string stmtEnd
 		{
 			setErrorMessage($2);
 		}
 	;
 
-error_app_tag: error_app_tagKeyword string optExtension
+error_app_tag: error_app_tagKeyword string stmtEnd
 		{
 			setErrorAppTag($2);
 		}
 	;
 
-optExtension:   ';'
+stmtEnd:   ';'
 	|
-		'{'
-			optExtensionSubstatement0_n
-		'}'
+            '{'
+			unknownStatement0_n
+            '}'
 	;
 
-optExtensionSubstatement0_n:
-		|
-			optExtensionSubstatement optExtensionSubstatement0_n;
+stmtSep:
+	|
+        	unknownStatement0_n
 	;
 
-optExtensionSubstatement: identifier string optExtension;
+unknownStatement0_n:
+	|
+			unknownStatement unknownStatement0_n;
+	;
+
+unknownStatement:   identifier stmtEnd
+        |                    
+                    identifier string stmtEnd
+        ;
 
 containerStatement: containerKeyword identifier
 			{
@@ -1554,7 +1667,7 @@ mustSubstatement:	error_message
 			referenceStatement
 		;
 			
-configStatement: 	configKeyword trueKeyword optExtension
+configStatement: 	configKeyword trueKeyword stmtEnd
 			{
 				if(currentNode->parentPtr &&   currentNode->parentPtr->export.config != SMI_CONFIG_FALSE)
 						currentNode->export.config = SMI_CONFIG_TRUE;
@@ -1567,18 +1680,18 @@ configStatement: 	configKeyword trueKeyword optExtension
 			
 			}
 	|
-			configKeyword falseKeyword optExtension
+			configKeyword falseKeyword stmtEnd
 			{
 				currentNode->export.config = SMI_CONFIG_FALSE;
 			}
 		;
 
-mandatoryStatement: mandatoryKeyword trueKeyword optExtension
+mandatoryStatement: mandatoryKeyword trueKeyword stmtEnd
 			{
 				currentNode->export.mandatory = SMI_MANDATORY_TRUE;
 			}
 		|
-		    	mandatoryKeyword falseKeyword optExtension	
+		    	mandatoryKeyword falseKeyword stmtEnd	
 			{
 				currentNode->export.mandatory = SMI_MANDATORY_FALSE;
 			}
@@ -1707,7 +1820,7 @@ listSubstatement:	mustStatement
 			groupingStatement
 		;
 
-max_elementsStatement: 	max_elementsKeyword string optExtension
+max_elementsStatement: 	max_elementsKeyword string stmtEnd
 			{
 				if(strcmp($2,"unbounded")) //if true means string is different from "unbounded"
 				{
@@ -1715,21 +1828,21 @@ max_elementsStatement: 	max_elementsKeyword string optExtension
 				}
 				//else do nothing because unbounded is default value anyway
 			}
-		|	max_elementsKeyword decimalNumber optExtension
+		|	max_elementsKeyword decimalNumber stmtEnd
 			{
 				SmiUnsigned32 value = strtoul($2, NULL, 10);
 				setYangNodeMaxElements(currentNode, value);
 			}
 		;
 
-min_elementsStatement: 	min_elementsKeyword decimalNumber optExtension
+min_elementsStatement: 	min_elementsKeyword decimalNumber stmtEnd
 			{
 				SmiUnsigned32 value = strtoul($2, NULL, 10);
 				setYangNodeMinElements(currentNode, value);				
 			}
 		;
 
-ordered_byStatement: 	ordered_byKeyword string optExtension
+ordered_byStatement: 	ordered_byKeyword string stmtEnd
 			{
 				if(!strcmp($2,"system"))
 				{
@@ -1746,7 +1859,7 @@ ordered_byStatement: 	ordered_byKeyword string optExtension
 			}
 		;
 
-keyStatement: keyKeyword string optExtension
+keyStatement: keyKeyword string stmtEnd
 		{
 			currentNode->keyList = (YangNodeList*)smiMalloc(sizeof(YangNodeList));
 			YangNodeList *list  = currentNode->keyList;
@@ -1775,7 +1888,7 @@ keyStatement: keyKeyword string optExtension
 		}
 	;
 	
-uniqueStatement: uniqueKeyword string optExtension
+uniqueStatement: uniqueKeyword string stmtEnd
 		{
 			currentNode->uniqueList = (YangNodeList*)smiMalloc(sizeof(YangNodeList));
 			YangNodeList *list  = currentNode->uniqueList;
@@ -2026,7 +2139,7 @@ augmentSubstatement:	whenStatement
 			usesStatement
 		;
 
-whenStatement:	whenKeyword string optExtension
+whenStatement:	whenKeyword string stmtEnd
 	        {
 			currentNode->when = smiStrdup($2)
 		}
@@ -2204,47 +2317,71 @@ anyXMLSubstatement:	descriptionStatement
 
 extensionStatement: extensionKeyword identifier
 		{
+                        memset(extensionFlags, 0, sizeof(extensionFlags));
 			pushDecl(SMI_DECL_EXTENSION);
-			currentNode = addYangNode($2,SMI_DECL_EXTENSION, currentNode, currentModule);
+			currentNode = addYangNode($2, SMI_DECL_EXTENSION, currentNode, currentModule);
 		}
-		'{'
-			extensionSubstatement_0n
-		'}'
+                extensionStatementBody
 		{
 			popDecl();
 			currentNode = currentNode->parentPtr;
 		}
-		;
 
-extensionSubstatement_0n:	extensionSubstatement
+		
+extensionStatementBody:  '{' stmtSep extensionSubstatement_0n '}'
+                    |
+                         ';'
+                    ;                       
+
+
+extensionSubstatement_0n:	
 			{
 				$$ = 1;
 			}
 		|
-		       extensionSubstatement extensionSubstatement_0n
+                                extensionSubstatement_0n extensionSubstatement stmtSep
 			{
-				$$ = 1 + $2;
+				$$ = 1 + $1;
 			}
 		;
 
-extensionSubstatement:	descriptionStatement
-		|
-			referenceStatement
+extensionSubstatement:	argumentStatement
 		|
 			statusStatement
 		|
-			argumentStatement
+			descriptionStatement
+		|
+			referenceStatement
 		;
 
-argumentStatement: argumentKeyword string
+argumentStatement: argumentKeyword identifier
 		{
-			addYangNode($2,SMI_DECL_ARGUMENT, currentNode, currentModule);
+                        if (!extensionFlags[FLAG_EXT_ARGUMENT]) {
+                            addYangNode($2, SMI_DECL_ARGUMENT, currentNode, currentModule);
+                        } else {
+                                smiPrintError(parserPtr,
+                                              ERR_REDEFINED_ELEMENT,
+                                              "argument");
+                        }
+                        extensionFlags[FLAG_EXT_ARGUMENT] = 1;
 		}
+                argumentStatementBody
 		;
 
+argumentStatementBody:  '{' stmtSep '}'
+                    |
+                         ';'
+                    ;                       
 
-defaultStatement: defaultKeyword string optExtension
+
+defaultStatement: defaultKeyword string stmtEnd
 		;
+
+prefix:		identifier
+		{
+			$$ = $1;
+		}
+        ;
 
 string:		qString
 		{
@@ -2257,6 +2394,16 @@ string:		qString
 		}
 	|
 		identifier
+		{
+			$$ = $1;
+		}
+        |
+                dateString
+		{
+			$$ = $1;
+		}
+        |
+                yangVersion
 		{
 			$$ = $1;
 		}

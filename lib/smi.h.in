@@ -228,7 +228,8 @@ typedef enum SmiDecl {
     SMI_DECL_RPC		= 65,
     SMI_DECL_INPUT		= 66,
     SMI_DECL_OUTPUT		= 67,
-    SMI_DECL_ANYXML		= 68
+    SMI_DECL_ANYXML		= 68,
+    SMI_DECL_INCLUDE		= 69    
 
 } SmiDecl;
 
