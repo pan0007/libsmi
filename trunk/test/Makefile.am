@@ -36,7 +36,6 @@ TESTS			= smilint-smiv2.test \
 			  smidump-orig-smiv2.test \
 			  smidump-smiv2-smiv2.test \
 			  parser.test \
-			  parser-yang.test \
 			  smidiff.test \
 			  parser-yang.test
 # nobody uses SMIng at the moment and smidump-sming.test fails => disabled
