@@ -47,13 +47,13 @@ parser-yang.c: parser-yang.y scanner-yang.h parser-yang.h
 	$(BISON) --defines=parser-yang.tab.h -t -pyang -o parser-yang.c parser-yang.y
 
 scanner-smi.c: scanner-smi.l scanner-smi.h parser-smi.tab.h
-	$(FLEX) -Cfe -Psmi -t scanner-smi.l > scanner-smi.c
+	$(FLEX) -Cfe -Psmi -t -o scanner-smi.c scanner-smi.l>scanner-smi.c
 
 scanner-sming.c: scanner-sming.l scanner-sming.h parser-sming.tab.h
-	$(FLEX) -Cfe -Psming -t scanner-sming.l > scanner-sming.c
+	$(FLEX) -Cfe -Psming -t -o scanner-sming.c scanner-sming.l > scanner-sming.c
 
 scanner-yang.c: scanner-yang.l scanner-yang.h parser-yang.tab.h
-	$(FLEX) -Cfe -Pyang -t scanner-yang.l > scanner-yang.c
+	$(FLEX) -Cfe -Pyang -t -o scanner-yang.c scanner-yang.l>scanner-yang.c
 
 error.h data.lo: errormacros.h
 
