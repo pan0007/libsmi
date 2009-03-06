@@ -427,6 +427,28 @@ void setModuleXMLNamespace(Module *modulePtr, char *XMLNamespace)
 /*
  *----------------------------------------------------------------------
  *
+ * setModuleYangVersion --
+ *
+ *      Set the yang version of a given Yang Module.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+void setModuleYangVersion(Module *modulePtr, char *yangVers)
+{
+    modulePtr->export.yangVers = yangVers;
+}
+
+
+/*
+ *----------------------------------------------------------------------
+ *
  * setModuleDescription --
  *
  *      Set the description string of a given Module.
@@ -605,6 +627,33 @@ Revision *addRevision(time_t date, char *description, Parser *parserPtr)
     return (revisionPtr);
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * setRevisionDescription --
+ *
+ *      Set the description string of a given Revision.
+ *
+ * Results:
+ *	None.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+void setRevisionDescription(Revision *revisionPtr, char *description,
+			  Parser *parserPtr)
+{
+    if (revisionPtr->export.description)
+	smiFree(revisionPtr->export.description);
+    if (parserPtr->flags & SMI_FLAG_NODESCR) {
+	smiFree(description);
+	revisionPtr->export.description = NULL;
+    } else {
+	revisionPtr->export.description = description;
+    }
+}
 
 
 /*

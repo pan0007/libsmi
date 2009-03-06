@@ -437,6 +437,9 @@ extern void setModuleContactInfo(Module *modulePtr,
 extern void setModuleXMLNamespace(Module *modulePtr,
 				 char *XMLNamespace);
 
+extern void setModuleYangVersion(Module *modulePtr, 
+                                 char *yangVers);
+
 extern void setModuleDescription(Module *modulePtr,
 				 char *description,
 				 Parser *parserPtr);
@@ -459,6 +462,10 @@ extern Module *findImportedModuleByPrefix(Module *modulePtr,
 extern Revision *addRevision(time_t date,
 			     char *description,
 			     Parser *parserPtr);
+
+extern void setRevisionDescription(Revision *revisionPtr, 
+                                char *description,
+                                Parser *parserPtr);
 
 extern void setRevisionLine(Revision *revisionPtr,
 			    int line,
