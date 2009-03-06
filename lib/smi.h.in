@@ -302,6 +302,7 @@ typedef struct SmiModule {
     SmiLanguage		language;
     int                 conformance;
     char		*prefix; //Yang module recommended prefix
+	char		*yangVers;
     char		*XMLNamespace;
 } SmiModule;
 
