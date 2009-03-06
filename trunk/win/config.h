@@ -1,7 +1,7 @@
 /*
  * config.h.  Generated manually for windows / vc++ 6.0
  *
- * @(#) $Id: config.h 8090 2008-04-18 12:56:29Z strauss $
+ * @(#) $Id: config.h.in 8079 2008-04-17 18:12:48Z schoenw $
  */
 
 /* Define if the SMIv1/v2 parser shall be active. */

@@ -3,6 +3,12 @@
  *
  *      Lexical rules for scanning the Yang modules.
  *
+ * Copyright (c) 1999 Frank Strauss, Technical University of Braunschweig.
+ *
+ * See the file "COPYING" for information on usage and redistribution
+ * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
+ *
+ *  Authors: Kaloyan Kanev, Siarhei Kuryla
  */
 
 %option noyywrap
@@ -32,7 +38,15 @@
 #include <dmalloc.h>
 #endif
 
+//#define DEBUG
 
+#ifdef DEBUG 
+#define debug(args...) fprintf (stderr, "[%s=%s]", args);
+#define _debug(args...) fprintf (stderr, "[%s=%s]", args, yylval.text);
+#else
+#define debug
+#define _debug
+#endif
 
 /* we need a reentrant parser, so yylex gets arguments */
 
@@ -84,7 +98,7 @@ yangLeaveLexRecursion()
     yy_delete_buffer(YY_CURRENT_BUFFER);
     yy_switch_to_buffer(yybuffer[--lexDepth]);
 }
-
+    
 %}
 
 %{
@@ -173,7 +187,7 @@ char *s, *d;		/* the source and destination pointer */
 void cleanDQString()
 {
 
-char *s, *d;		/* the source and destination pointer */
+    char *s, *d;		/* the source and destination pointer */
     int column = 0;		/* the current column */
     int newlineflag = 0;	/* we have just passed a newline */
     int cutoffcolumn = 0;	/* cut off white space up to this column */
@@ -247,53 +261,65 @@ char *s, *d;		/* the source and destination pointer */
     }
     d[0] = '\0';
 }
+
+int getNumberOfCR() {
+   int j, count = 0;
+   for (j = 0; j <  yyleng; j++) {
+        if (*(yytext + j) == '\n') {
+            count++;
+        }
+   }
+   return count;
+}
+
 %}
+
+/* RFC 4234 core rules. */
+ALPHA           [A-Za-z]
+CR              \015 
+CRLF            {CR}{LF}
+DIGIT           [0-9]
+HTAB		"\t"
+LF              \012
+SP		" "
+VCHAR		([\041-\377])
+WSP		({SP}|{HTAB})
 
 /*
  * Lex pattern definitions.
  */
+yangVersion     1
+date            {DIGIT}{4}"-"{DIGIT}{2}"-"{DIGIT}{2}
+identifier      ({ALPHA}|"_")({ALPHA}|{DIGIT}|"_"|"-"|".")*
+lineBreak       ({CRLF}|{LF})
+unquotedString  ([^ \n\t;{}/*]|(\*[^/])|(\/[^*/]))+
 
 delim		([^a-zA-Z0-9\200-\377])
-lineBreak       ("\n"|"\n\015"|"\015\n")
 UTFCHAR 	([_a-zA-Z0-9\200-\377])
-WSP		(" "|"\t")
-VCHAR		([\041-\377])
-HTAB		"\t"
-SP		" "
 
 
 /*
  * Lex state definitions.
  */
-%s		Skipline
 %x		ConcatString
 %x		FindPlus
 
 %%
 
  /*
-  * Lex rules for comments. Do you use {lineBreak} here because it
-  * introduces a trailing context which is (a) slow and (b) causes
-  * REJECT to be used.
+  * Lex rules for comments. We don't use {lineBreak} here because it
+  * introduces a trailing context which is slow. To avoid it we add two rules for single line comments.
   */
-
-<INITIAL>(\/){2}({WSP}|{VCHAR})*/"\n" {
-//printf("comment1");
+<INITIAL>(\/){2}({WSP}|{VCHAR})*/{LF} {
 	thisParser.line++;
 }
 
-<INITIAL>(\/){2}({WSP}|{VCHAR})*/"\n\015" {
-//printf("comment2");
-	thisParser.line++;
-}
-
-<INITIAL>(\/){2}({WSP}|{VCHAR})*/"\015\n" {
-//printf("comment3");
+<INITIAL>(\/){2}({WSP}|{VCHAR})*/{CRLF} {
 	thisParser.line++;
 }
 
 <INITIAL>"/*"([^\*]|(\*[^/]))*"*/"  {
-	//printf("comment4");
+        thisParser.line += getNumberOfCR();
 }
 
 
@@ -301,11 +327,11 @@ SP		" "
   * Lex rules for some special tokens.
   */
 
-<INITIAL>[\{\}\(\)\;\,\-\.\|] {
+<INITIAL>[\{\}\;] {
     return yytext[0];
 }
 
-	/*
+ /*
   * Lex rules for separators.
   */
 
@@ -313,21 +339,46 @@ SP		" "
     thisParser.line++;
 }
 
-<INITIAL>{WSP} {
+<INITIAL>{WSP} {    
 }
 
  /*
- *Lex rules for keywords
- */
+  * Lex rules for statment keywords 
+  */
+
+<INITIAL>anyxml/{delim} {
+	yylval.id = yytext;
+	return anyXMLKeyword;
+}
+
+<INITIAL>argument/{delim} {
+	yylval.id = yytext;
+	return argumentKeyword;
+}
 
 <INITIAL>augment/{delim} {
 	yylval.id = yytext;
 	return augmentKeyword;
 }
 
+<INITIAL>base/{delim} {
+	yylval.id = yytext;
+	return baseKeyword;
+}
+
 <INITIAL>belongs-to/{delim} {
 	yylval.id = yytext;
 	return belongs_toKeyword;
+}
+
+<INITIAL>bit/{delim} {
+	yylval.id = yytext;
+	return bitKeyword;
+}
+
+<INITIAL>case/{delim} {
+	yylval.id = yytext;
+	return caseKeyword;
 }
 
 <INITIAL>choice/{delim} {
@@ -380,9 +431,34 @@ SP		" "
 	return extensionKeyword;
 }
 
+<INITIAL>deviation/{delim} {
+	yylval.id = yytext;
+	return deviationKeyword;
+}
+
+<INITIAL>deviate/{delim} {
+	yylval.id = yytext;
+	return deviateKeyword;
+}
+
+<INITIAL>feature/{delim} {
+	yylval.id = yytext;
+	return featureKeyword;
+}
+
 <INITIAL>grouping/{delim} {
 	yylval.id = yytext;
 	return groupingKeyword;
+}
+
+<INITIAL>identity/{delim} {
+	yylval.id = yytext;
+	return identityKeyword;
+}
+
+<INITIAL>if-feature/{delim} {
+	yylval.id = yytext;
+	return ifFeatureKeyword;
 }
 
 <INITIAL>import/{delim} {
@@ -393,6 +469,11 @@ SP		" "
 <INITIAL>include/{delim} {
 	yylval.id = yytext;
 	return includeKeyword;
+}
+
+<INITIAL>input/{delim} {
+	yylval.id = yytext;
+	return inputKeyword;
 }
 
 <INITIAL>key/{delim} {
@@ -440,11 +521,6 @@ SP		" "
 	return moduleKeyword;
 }
 
-<INITIAL>submodule/{delim} {
-	yylval.id = yytext;
-	return submoduleKeyword;
-}
-
 <INITIAL>must/{delim} {
 	yylval.id = yytext;
 	return mustKeyword;
@@ -453,6 +529,11 @@ SP		" "
 <INITIAL>namespace/{delim} {
 	yylval.id = yytext;
 	return namespaceKeyword;
+}
+
+<INITIAL>notification/{delim} {
+	yylval.id = yytext;
+	return notificationKeyword;
 }
 
 <INITIAL>ordered-by/{delim} {
@@ -465,9 +546,34 @@ SP		" "
 	return organizationKeyword;
 }
 
+<INITIAL>output/{delim} {
+	yylval.id = yytext;
+	return outputKeyword;
+}
+
+<INITIAL>path/{delim} {
+	yylval.id = yytext;
+	return pathKeyword;
+}
+
+<INITIAL>pattern/{delim} {
+	yylval.id = yytext;
+	return patternKeyword;
+}
+
+<INITIAL>position/{delim} {
+	yylval.id = yytext;
+	return positionKeyword;
+}
+
 <INITIAL>prefix/{delim} {
 	yylval.id = yytext;
 	return prefixKeyword;
+}
+
+<INITIAL>presence/{delim} {
+	yylval.id = yytext;
+	return presenceKeyword;
 }
 
 <INITIAL>range/{delim} {
@@ -480,9 +586,14 @@ SP		" "
 	return referenceKeyword;
 }
 
-<INITIAL>pattern/{delim} {
+<INITIAL>refine/{delim} {
 	yylval.id = yytext;
-	return patternKeyword;
+	return refineKeyword;
+}
+
+<INITIAL>require-instance/{delim} {
+	yylval.id = yytext;
+	return requireInstanceKeyword;
 }
 
 <INITIAL>revision/{delim} {
@@ -490,9 +601,19 @@ SP		" "
 	return revisionKeyword;
 }
 
+<INITIAL>rpc/{delim} {
+	yylval.id = yytext;
+	return rpcKeyword;
+}
+
 <INITIAL>status/{delim} {
 	yylval.id = yytext;
 	return statusKeyword;
+}
+
+<INITIAL>submodule/{delim} {
+	yylval.id = yytext;
+	return submoduleKeyword;
 }
 
 <INITIAL>type/{delim} {
@@ -530,14 +651,83 @@ SP		" "
 	return whenKeyword;
 }
 
-<INITIAL>bit/{delim} {
+<INITIAL>yang-version/{delim} {
 	yylval.id = yytext;
-	return bitKeyword;
+	return yangversionKeyword;
 }
 
-<INITIAL>path/{delim} {
+<INITIAL>yin-element/{delim} {
 	yylval.id = yytext;
-	return pathKeyword;
+	return yinElementKeyword;
+}
+
+ /*
+  * Lex rules for other keywords
+  */
+
+<INITIAL>current/{delim} {
+	yylval.id = yytext;
+	return currentKeyword;
+}
+
+<INITIAL>deprecated/{delim} {
+	yylval.id = yytext;
+	return deprecatedKeyword;
+}
+
+<INITIAL>false/{delim} {
+	yylval.id = yytext;
+	return falseKeyword;
+}
+
+<INITIAL>obsolete/{delim} {
+	yylval.id = yytext;
+	return obsoleteKeyword;
+}
+
+<INITIAL>true/{delim} {
+	yylval.id = yytext;
+	return trueKeyword;
+}
+
+
+ /*
+  *  Lex rules for built-in types
+  */
+
+<INITIAL>binary/{delim} {
+	yylval.id = yytext;
+	return binaryKeyword;
+}
+
+<INITIAL>bits/{delim} {
+	yylval.id = yytext;
+	return bitsKeyword;
+}
+
+<INITIAL>boolean/{delim} {
+	yylval.id = yytext;
+	return booleanKeyword;
+}
+
+<INITIAL>empty/{delim} {
+	yylval.id = yytext;
+	return emptyKeyword;
+}
+
+<INITIAL>enumeration/{delim} {
+	yylval.id = yytext;
+	return enumerationKeyword;
+}
+
+<INITIAL>float32/{delim} {
+	yylval.id = yytext;
+	return float32Keyword;
+}
+
+<INITIAL>float64/{delim} {
+	yylval.id = yytext;
+	return float64Keyword;
 }
 
 <INITIAL>int8/{delim} {
@@ -560,6 +750,16 @@ SP		" "
 	return int64Keyword;
 }
 
+<INITIAL>leafref/{delim} {
+	yylval.id = yytext;
+	return leafrefKeyword;
+}
+
+<INITIAL>string/{delim} {
+	yylval.id = yytext;
+	return stringKeyword;
+}
+
 <INITIAL>uint8/{delim} {
 	yylval.id = yytext;
 	return uint8Keyword;
@@ -580,111 +780,55 @@ SP		" "
 	return uint64Keyword;
 }
 
-<INITIAL>float32/{delim} {
-	yylval.id = yytext;
-	return float32Keyword;
+ /*
+  * Lex rules for identifiers.
+  * Note that these may be either single and double quoted or unquoted strings
+  */
+<INITIAL>{identifier}/{delim} {
+    yylval.text = smiStrdup(yytext);
+    _debug("uIdentifier");
+    return identifier;
 }
 
-<INITIAL>float64/{delim} {
-	yylval.id = yytext;
-	return float64Keyword;
+<INITIAL>(\"{identifier}\"|\'{identifier}\')/{delim} {
+    yylval.text = smiStrndup((yytext + 1), yyleng - 2);
+    _debug("qIdentifier");
+    return identifier;
 }
 
-<INITIAL>string/{delim} {
-	yylval.id = yytext;
-	return stringKeyword;
+ /*
+  * Lex rules for dates.
+  * Note that these may be either single and double quoted or unquoted strings
+  */
+<INITIAL>{date}/{delim} {    
+    yylval.text = smiStrdup(yytext);
+    _debug("uDate");
+    return dateString;
 }
 
-<INITIAL>boolean/{delim} {
-	yylval.id = yytext;
-	return booleanKeyword;
+
+<INITIAL>(\"{date}\"|\'{date}\')/{delim} {
+    yylval.text = smiStrndup((yytext + 1), yyleng - 2);
+    _debug("qDate");
+    return dateString;
 }
 
-<INITIAL>enumeration/{delim} {
-	yylval.id = yytext;
-	return enumerationKeyword;
+ /*
+  * Lex rules for dates.
+  * Note that these may be either single and double quoted or unquoted strings
+  */
+<INITIAL>{yangVersion}/{delim} {    
+    yylval.text = smiStrdup(yytext);
+    _debug("uYangVersion");
+    return yangVersion;
 }
 
-<INITIAL>bits/{delim} {
-	yylval.id = yytext;
-	return bitsKeyword;
-}
 
-<INITIAL>binary/{delim} {
-	yylval.id = yytext;
-	return binaryKeyword;
+<INITIAL>(\"{yangVersion}\"|\'{yangVersion}\')/{delim} {
+    yylval.text = smiStrndup((yytext + 1), yyleng - 2);
+    _debug("qYangVersion");
+    return yangVersion;
 }
-
-<INITIAL>keyref/{delim} {
-	yylval.id = yytext;
-	return keyrefKeyword;
-}
-
-<INITIAL>empty/{delim} {
-	yylval.id = yytext;
-	return emptyKeyword;
-}
-
-<INITIAL>anyxml/{delim} {
-	yylval.id = yytext;
-	return anyXMLKeyword;
-}
-
-<INITIAL>deprecated/{delim} {
-	yylval.id = yytext;
-	return deprecatedKeyword;
-}
-
-<INITIAL>current/{delim} {
-	yylval.id = yytext;
-	return currentKeyword;
-}
-
-<INITIAL>obsolete/{delim} {
-	yylval.id = yytext;
-	return obsoleteKeyword;
-}
-
-<INITIAL>true/{delim} {
-	yylval.id = yytext;
-	return trueKeyword;
-}
-
-<INITIAL>false/{delim} {
-	yylval.id = yytext;
-	return falseKeyword;
-}
-
-<INITIAL>case/{delim} {
-	yylval.id = yytext;
-	return caseKeyword;
-}
-
-<INITIAL>input/{delim} {
-	yylval.id = yytext;
-	return inputKeyword;
-}
-
-<INITIAL>output/{delim} {
-	yylval.id = yytext;
-	return outputKeyword;
-}
-
-<INITIAL>rpc/{delim} {
-	yylval.id = yytext;
-	return rpcKeyword;
-}
-
-<INITIAL>notification/{delim} {
-	yylval.id = yytext;
-	return notificationKeyword;
-}
-
-<INITIAL>argument/{delim} {
-	yylval.id = yytext;
-	return argumentKeyword;
-}
-
 
  /*
   * Lex rules for textSegments.
@@ -697,7 +841,7 @@ SP		" "
    BEGIN(FindPlus);
 }
 
-<INITIAL>\'([^\']|(\\\'))*\' {
+<INITIAL>\'([^\'])*\' {
     cleanSQString();
     thisParser.line += lineAdjust;
     concatTmp = smiStrdup(yytext);
@@ -708,17 +852,22 @@ SP		" "
 }
 
 <FindPlus>{lineBreak} {
+    thisParser.line++;
 }
 
 <FindPlus>\+ {
 	BEGIN(ConcatString);
 }
 
-<FindPlus>([^\+]|[^{WSP}]) {
+ /* TODO: '+' is added temporarily, actually here might be any character,
+  * but it's not an error because there is a separate rule for '+' above.
+  */
+<FindPlus>([^+]) {
 	BEGIN(INITIAL);
-	yyless(0);
+	yyless(0); // returns the character of the current token back to the input stream
 	yylval.text = smiStrdup(concatTmp);
 	smiFree(concatTmp);
+        _debug("qSring");
 	return qString;
 }
 
@@ -729,9 +878,7 @@ SP		" "
 	strcpy(tmp, concatTmp);
 	smiFree(concatTmp);
 	concatTmp = tmp;
-	strcat(concatTmp,yytext);
-
-
+	strcat(concatTmp, yytext);
 	BEGIN(FindPlus);
 }
 
@@ -755,55 +902,12 @@ SP		" "
 <ConcatString>{WSP} {
 }
 
-
- /*
-  * Lex rules for numbers.
-  *
-  * NOTE: `-' is a separate token. Hence, there are no negative numbers.
-  */
-
-<INITIAL>0+/[0-9] {
-    printf("err leading zeroes");
+<INITIAL>{unquotedString} {
+        yylval.text = smiStrdup(yytext);
+        _debug("uString");
+        return uqString;
 }
-
-<INITIAL>([1-9][0-9]*|0)/[^0-9] {
-   yylval.text = smiStrdup(yytext);
-   return decimalNumber;
-}
-
-<INITIAL>0x[0-9a-fA-F]+/[^0-9a-fA-F] {
-     yylval.text = smiStrdup(yytext);
-     return hexNumber;
-}
- /*
-  * Lex rules for floating point values.
-  */
-
-<INITIAL>([0-9]*\.[0-9]+([eE][+-]?[0-9]+)?)/[^0-9] {
-   yylval.text = smiStrdup(yytext);
-   return floatNumber;
-}
-
-
- /*
-  * Lex rules for identifiers.
-  * note that these may be unquoted strings
-  */
-
-<INITIAL>([a-zA-Z0-9_:\-]+)*/{delim} {
-    yylval.text = smiStrdup(yytext);
-    return identifier;
-}
-
- /*
-  * Rule for unquoted string.
-  * It is at the end because it potentially matches all the other tokens
-  */
-<INITIAL>{UTFCHAR}*/{delim} {
-   	yylval.text = smiStrdup(yytext);
-	return uqString;
-}
-
 %%
+
 
 #endif
