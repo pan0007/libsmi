@@ -1,0 +1,2 @@
+/data/projects/libsmi/trunk/test/yang/8.yang:9: syntax error, unexpected uqString, expecting moduleKeyword or submoduleKeyword
+smilint: cannot locate module `/data/projects/libsmi/trunk/test/yang/8.yang'
