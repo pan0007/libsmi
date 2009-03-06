@@ -1,0 +1,4 @@
+/data/projects/libsmi/trunk/test/yang/15.yang:26: argument already defined
+/data/projects/libsmi/trunk/test/yang/15.yang:29: status already defined
+/data/projects/libsmi/trunk/test/yang/15.yang:33: description already defined
+/data/projects/libsmi/trunk/test/yang/15.yang:36: reference already defined
