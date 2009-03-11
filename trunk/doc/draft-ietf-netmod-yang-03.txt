@@ -1,6 +1,3 @@
-3
-
-
 Network Working Group                                  M. Bjorklund, Ed.
 Internet-Draft                                            Tail-f Systems
 Intended status: Standards Track                        January 12, 2009
