@@ -797,6 +797,22 @@ UTFCHAR 	([_a-zA-Z0-9\200-\377])
 }
 
  /*
+  * Lex rules for identifier-ref-arg-str.
+  * Note that these may be either single and double quoted or unquoted strings
+  */
+<INITIAL>{identifier}:{identifier}/{delim} {
+    yylval.text = smiStrdup(yytext);
+    _debug("uIdentifierRefArgStr");
+    return identifierRefArgStr;
+}
+
+<INITIAL>(\"{identifier}:{identifier}\"|\'{identifier}:{identifier}\')/{delim} {
+    yylval.text = smiStrndup((yytext + 1), yyleng - 2);
+    _debug("qIdentifierRefArgStr");
+    return identifierRefArgStr;
+}
+
+ /*
   * Lex rules for dates.
   * Note that these may be either single and double quoted or unquoted strings
   */

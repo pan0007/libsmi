@@ -409,8 +409,6 @@ extern void removeHandle(Handle *handlePtr);
 
 extern Handle *findHandleByName(const char *name);
 
-
-
 extern View *addView(const char *modulename);
 
 extern int isInView(const char *modulename);
