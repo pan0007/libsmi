@@ -523,10 +523,14 @@ fprintRevisions(FILE *f, int indent, SmiModule *smiModule)
 	smiRevision; smiRevision = smiGetNextRevision(smiRevision)) {
 	fprintSegment(f, indent, "revision ", 0);
 	fprint(f, "\"%s\" {\n", getStringDate(smiRevision->date));
-	fprintSegment(f, 2 * indent, "description", INDENTVALUE);
-	fprint(f, "\n");
-	fprintMultilineString(f, 2 * indent, smiRevision->description);
-	fprint(f, ";\n");
+        
+        if (smiRevision->description) {
+                fprintSegment(f, 2 * indent, "description", INDENTVALUE);
+                fprint(f, "\n");
+                fprintMultilineString(f, 2 * indent, smiRevision->description);
+                fprint(f, ";\n");
+        }
+        
         fprintSegment(f, indent, "}\n", 0);
 	i++;
     }
@@ -1144,16 +1148,26 @@ fprintContainers(FILE *f, SmiModule *smiModule)
 
 
 static void
-fprintNamespace(FILE *f, int indent, SmiModule *smiModule)
+fprintNamespaceAndPrefix(FILE *f, int indent, SmiModule *smiModule)
 {
      if (! silent) {
 	  fprintSegment(f, indent, "/*** NAMESPACE / PREFIX DEFINITION ***/\n\n", 0);
      }
 
      fprintSegment(f, indent, "namespace ", 0);
-     fprint(f, "\"%s%s\";\n", URNBASE, smiModule->name);
+     
+     if (!smiModule->XMLNamespace) {
+        fprint(f, "\"%s%s\";\n", URNBASE, smiModule->name);         
+     } else {
+        fprint(f, "\"%s\";\n", smiModule->XMLNamespace);
+     }
+     
      fprintSegment(f, indent, "prefix ", 0);
-     fprint(f, "\"%s\";\n\n", getModulePrefix(smiModule->name));
+     if (!smiModule->prefix) {
+        fprint(f, "\"%s\";\n\n", getModulePrefix(smiModule->name));    
+     } else {
+        fprint(f, "\"%s\";\n\n", smiModule->prefix); 
+     }
 }
 
 
@@ -1173,18 +1187,28 @@ fprintMeta(FILE *f, int indent, SmiModule *smiModule)
      if (! silent) {
 	  fprintSegment(f, indent, "/*** META INFORMATION ***/\n\n", 0);
      }
-     fprintSegment(f, indent, "organization", INDENTVALUE);
-     fprint(f, "\n");
-     fprintMultilineString(f, indent, smiModule->organization);
-     fprint(f, ";\n\n");
-     fprintSegment(f, indent, "contact", INDENTVALUE);
-     fprint(f, "\n");
-     fprintMultilineString(f, indent, smiModule->contactinfo);
-     fprint(f, ";\n\n");
-     fprintSegment(f, indent, "description", INDENTVALUE);
-     fprint(f, "\n");
-     fprintMultilineString(f, indent, smiModule->description);
-     fprint(f, ";\n\n");
+     
+     if (smiModule->organization) {
+             fprintSegment(f, indent, "organization", INDENTVALUE);
+             fprint(f, "\n");
+             fprintMultilineString(f, indent, smiModule->organization);
+             fprint(f, ";\n\n");
+     }
+     
+     if (smiModule->contactinfo) {
+             fprintSegment(f, indent, "contact", INDENTVALUE);
+             fprint(f, "\n");
+             fprintMultilineString(f, indent, smiModule->contactinfo);
+             fprint(f, ";\n\n");
+     }
+     
+     if (smiModule->description) {
+             fprintSegment(f, indent, "description", INDENTVALUE);
+             fprint(f, "\n");
+             fprintMultilineString(f, indent, smiModule->description);
+             fprint(f, ";\n\n");
+     }
+     
      if (smiModule->reference) {
 	  fprintSegment(f, indent, "reference", INDENTVALUE);
 	  fprint(f, "\n");
@@ -1343,6 +1367,7 @@ dumpYang(int modc, SmiModule **modv, int flags, char *output)
 	}
     }
 
+
     for (i = 0; i < modc; i++) {
 
 	smiModule = modv[i];
@@ -1370,9 +1395,12 @@ dumpYang(int modc, SmiModule **modv, int flags, char *output)
 	fprint(f, "module %s {\n", smiModule->name);
 	fprint(f, "\n");
 
-	fprintNamespace(f, INDENT, smiModule);
-	fprintLinkage(f, INDENT, smiModule);
-	fprintMeta(f, INDENT, smiModule);
+	fprintNamespaceAndPrefix(f, INDENT, smiModule);
+
+//      TODO: not implemented
+//	fprintLinkage(f, INDENT, smiModule);
+
+        fprintMeta(f, INDENT, smiModule);
 	fprintRevisions(f, INDENT, smiModule);
 
 	fprintTypedefs(f, modv[i]);
