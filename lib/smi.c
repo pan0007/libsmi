@@ -70,7 +70,6 @@ Handle *smiHandle = NULL;
 /*
  * Internal functions.
  */
-
 static void getModulenameAndName(const char *arg1, const char *arg2,
 				 char **module, char **name)
 {
@@ -135,7 +134,6 @@ static void getModulenameAndName(const char *arg1, const char *arg2,
 	*name = smiStrdup(arg2);
     }
 }
-
 
 
 static Node *getNode(unsigned int oidlen, SmiSubid oid[])
@@ -418,7 +416,6 @@ char *smiLoadModule(const char *module)
     if (!smiHandle) smiInit(NULL);
 
     if (smiIsPath(module)) {
-
 	modulePtr = loadModule(module, NULL);
 
 	if (modulePtr) {
@@ -430,8 +427,7 @@ char *smiLoadModule(const char *module)
 	    return NULL;
 	}
 
-    } else {
-	
+    } else {	
 	if ((modulePtr = findModuleByName(module))) {
 	    /* already loaded. */
 	    if (!isInView(module)) {

@@ -38,6 +38,7 @@
 #include "data.h"
 #include "check.h"
 #include "util.h"
+#include "parser-yang-util.h"
     
 #ifdef HAVE_DMALLOC_H
 #include <dmalloc.h>
@@ -469,36 +470,32 @@ void setStatus(SmiStatus status)
 
 void setType(SmiBasetype basetype, Type *parent, char *parentName)
 {
-	
 	switch( topDecl() )
 	{
 		case SMI_DECL_TYPEDEF:
 			if(basetype == SMI_BASETYPE_UNKNOWN) //type derived from non-base type
 			{
-				
 				if(parent) //known parent - put reference
 				{
 					//for typedefs type name is the same as node name
 					char *typeName = smiStrdup(currentNode->export.name);
 					currentType = createType(typeName); //add type with this name
 					setTypeDecl(currentType, SMI_DECL_TYPEDEF);
-					setTypeParent(currentType,parent);
-					setTypeBasetype(currentType,parent->export.basetype);
+					setTypeParent(currentType, parent);
+					setTypeBasetype(currentType, parent->export.basetype);
 				}
 				else //forward reference - put empty type with parent's name
 				{
 					char *typeName = smiStrdup(parentName);
-					currentType = createType(typeName); //add type with this name
-				//IMPORTANT: After parsing is finished the dummy types are changed with
-				// references to their parent. Dummies are distinguished by the fact that
-				// they have no parent (parentPtr = NULL)
+					currentType = createType(typeName);
+                                        setTypeDecl(currentType, SMI_DECL_TYPEDEF);
 				}
 			}
 			else //New type derived from base type
 			{
 				
 				//for typedefs type name is the same as node name
-			        currentType = createType(currentNode->export.name);		
+			        currentType = createType(currentNode->export.name);
 
 				setTypeBasetype(currentType, basetype);
 				setTypeParent(currentType, parent);
@@ -714,6 +711,7 @@ void setErrorAppTag(char *err)
 
 
 %token <text>identifier
+%token <text>identifierRefArgStr
 %token <text>dateString
 %token <text>yangVersion
 %token <text>qString
@@ -777,6 +775,7 @@ void setErrorAppTag(char *err)
 %type <date>date
 %type <text>string
 %type <text>prefix
+%type <text>identifierRef
 %type <rc>enumSpec
 %type <rc>enum
 %type <rc>enum_0n
@@ -853,6 +852,7 @@ void setErrorAppTag(char *err)
  */
 yangFile:		moduleStatement
 			{
+                                test();
 			    /*
 			     * Return the number of successfully
 			     * parsed modules.
@@ -1266,6 +1266,7 @@ typedefStatement:	typedefKeyword identifier
 				typedefSubstatement_0n
 			'}'
 			{
+                                
 				popDecl();
 			}
 	;
@@ -1291,8 +1292,7 @@ typedefSubstatement:	typeStatement
 	;
 
 typeStatement: typeKeyword type
-		{
-				
+		{			
 		}
 	;
 
@@ -1432,9 +1432,9 @@ refinedBasetype:	float32Keyword numRestriction
 			enumerationKeyword enumSpec
 	;
 
-refinedType:	identifier restriction
+refinedType:	identifierRef restriction
 		{
-			Type *t = findType($1);			
+			Type *t = findType($1);
 			if(t) //parent type already in types list
 			{
 				setType(SMI_BASETYPE_UNKNOWN,t,$1);
@@ -2382,6 +2382,18 @@ prefix:		identifier
 			$$ = $1;
 		}
         ;
+
+identifierRef: identifierRefArgStr 
+                {
+			$$ = $1;
+                }
+        |
+                identifier 
+                {
+			$$ = $1;
+                }
+        ;
+
 
 string:		qString
 		{
