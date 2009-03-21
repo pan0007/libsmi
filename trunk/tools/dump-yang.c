@@ -8,7 +8,7 @@
  * See the file "COPYING" for information on usage and redistribution
  * of this file, and for a DISCLAIMER OF ALL WARRANTIES.
  *
- * @(#) $Id: dump-yang.c 8090 2008-04-18 12:56:29Z strauss $
+ * @(#) $Id: dump-yang.c 13463 2009-03-16 07:54:49Z schoenw $
  */
 
 #include <config.h>
@@ -41,6 +41,7 @@ static int INDENT = 2;		/* indent factor */
 
 
 #define FLAG_CONFIG_FALSE 0x01
+#define FLAG_CONFIG_NONE  0x02
 
 
 static const char *convertType[] = {
@@ -102,7 +103,7 @@ static const char *convertType[] = {
 static const char *convertImport[] = {
 
     /*
-     * Things that are not types but removed from imports...
+     * Things that are not types and removed from imports...
      */
 
     "SNMPv2-SMI",  "MODULE-IDENTITY",    NULL, NULL,
@@ -523,14 +524,10 @@ fprintRevisions(FILE *f, int indent, SmiModule *smiModule)
 	smiRevision; smiRevision = smiGetNextRevision(smiRevision)) {
 	fprintSegment(f, indent, "revision ", 0);
 	fprint(f, "\"%s\" {\n", getStringDate(smiRevision->date));
-        
-        if (smiRevision->description) {
-                fprintSegment(f, 2 * indent, "description", INDENTVALUE);
-                fprint(f, "\n");
-                fprintMultilineString(f, 2 * indent, smiRevision->description);
-                fprint(f, ";\n");
-        }
-        
+	fprintSegment(f, 2 * indent, "description", INDENTVALUE);
+	fprint(f, "\n");
+	fprintMultilineString(f, 2 * indent, smiRevision->description);
+	fprint(f, ";\n");
         fprintSegment(f, indent, "}\n", 0);
 	i++;
     }
@@ -911,12 +908,14 @@ fprintLeaf(FILE *f, int indent, SmiNode *smiNode, int flags)
     }
     
     fprintUnits(f, indent + INDENT, smiNode->units);
-    if (flags & FLAG_CONFIG_FALSE) {
-	config = SMI_ACCESS_READ_ONLY;
-    } else {
-	config = smiNode->access;
+    if (! (flags & FLAG_CONFIG_NONE)) {
+	if (flags & FLAG_CONFIG_FALSE) {
+	    config = SMI_ACCESS_READ_ONLY;
+	} else {
+	    config = smiNode->access;
+	}
+	fprintConfig(f, indent + INDENT, config);
     }
-    fprintConfig(f, indent + INDENT, config);
     fprintStatus(f, indent + INDENT, smiNode->status);
     fprintDescription(f, indent + INDENT, smiNode->description);
     fprintReference(f, indent + INDENT, smiNode->reference);
@@ -928,7 +927,7 @@ fprintLeaf(FILE *f, int indent, SmiNode *smiNode, int flags)
 
 
 static void
-fprintKeyrefLeaf(FILE *f, int indent, SmiNode *smiNode, int flags)
+fprintLeafrefLeaf(FILE *f, int indent, SmiNode *smiNode, int flags)
 {
     SmiNode *entryNode;
     SmiAccess config;
@@ -936,21 +935,23 @@ fprintKeyrefLeaf(FILE *f, int indent, SmiNode *smiNode, int flags)
     entryNode = smiGetParentNode(smiNode);
     fprintSegment(f, indent, "leaf ", 0);
     fprint(f, "%s {\n", smiNode->name);
-    fprintSegment(f, indent + INDENT, "type keyref {\n", 0);
+    fprintSegment(f, indent + INDENT, "type leafref {\n", 0);
     fprintSegment(f, indent + 2 * INDENT, "path \"", 0);
     fprintPath(f, smiNode);
     fprint(f, "\";\n");
     fprintSegment(f, indent + INDENT, "}\n", 0);
-    if (flags & FLAG_CONFIG_FALSE) {
-	config = SMI_ACCESS_READ_ONLY;
-    } else {
-	config = entryNode->create
-	    ? SMI_ACCESS_READ_WRITE : SMI_ACCESS_READ_ONLY;
+    if (! (flags & FLAG_CONFIG_NONE)) {
+	if (flags & FLAG_CONFIG_FALSE) {
+	    config = SMI_ACCESS_READ_ONLY;
+	} else {
+	    config = entryNode->create
+		? SMI_ACCESS_READ_WRITE : SMI_ACCESS_READ_ONLY;
+	}
+	fprintConfig(f, indent + INDENT, config);
     }
-    fprintConfig(f, indent + INDENT, config);
     fprintStatus(f, indent + INDENT, smiNode->status);
     fprintDescription(f, indent + INDENT,
-		      "Automagically generated keyref leaf.");
+		      "Automagically generated leafref leaf.");
     fprintSegment(f, indent, "}\n", 0);
 }
 
@@ -1024,7 +1025,7 @@ fprintList(FILE *f, int indent, SmiNode *smiNode)
 	parentNode = smiGetParentNode(childNode);
         if (childNode->nodekind == SMI_NODEKIND_COLUMN
             && parentNode != entryNode) {
-	    fprintKeyrefLeaf(f, indent + INDENT, childNode, 0);
+	    fprintLeafrefLeaf(f, indent + INDENT, childNode, 0);
 	}
     }
 
@@ -1148,26 +1149,16 @@ fprintContainers(FILE *f, SmiModule *smiModule)
 
 
 static void
-fprintNamespaceAndPrefix(FILE *f, int indent, SmiModule *smiModule)
+fprintNamespace(FILE *f, int indent, SmiModule *smiModule)
 {
      if (! silent) {
 	  fprintSegment(f, indent, "/*** NAMESPACE / PREFIX DEFINITION ***/\n\n", 0);
      }
 
      fprintSegment(f, indent, "namespace ", 0);
-     
-     if (!smiModule->XMLNamespace) {
-        fprint(f, "\"%s%s\";\n", URNBASE, smiModule->name);         
-     } else {
-        fprint(f, "\"%s\";\n", smiModule->XMLNamespace);
-     }
-     
+     fprint(f, "\"%s%s\";\n", URNBASE, smiModule->name);
      fprintSegment(f, indent, "prefix ", 0);
-     if (!smiModule->prefix) {
-        fprint(f, "\"%s\";\n\n", getModulePrefix(smiModule->name));    
-     } else {
-        fprint(f, "\"%s\";\n\n", smiModule->prefix); 
-     }
+     fprint(f, "\"%s\";\n\n", getModulePrefix(smiModule->name));
 }
 
 
@@ -1187,28 +1178,18 @@ fprintMeta(FILE *f, int indent, SmiModule *smiModule)
      if (! silent) {
 	  fprintSegment(f, indent, "/*** META INFORMATION ***/\n\n", 0);
      }
-     
-     if (smiModule->organization) {
-             fprintSegment(f, indent, "organization", INDENTVALUE);
-             fprint(f, "\n");
-             fprintMultilineString(f, indent, smiModule->organization);
-             fprint(f, ";\n\n");
-     }
-     
-     if (smiModule->contactinfo) {
-             fprintSegment(f, indent, "contact", INDENTVALUE);
-             fprint(f, "\n");
-             fprintMultilineString(f, indent, smiModule->contactinfo);
-             fprint(f, ";\n\n");
-     }
-     
-     if (smiModule->description) {
-             fprintSegment(f, indent, "description", INDENTVALUE);
-             fprint(f, "\n");
-             fprintMultilineString(f, indent, smiModule->description);
-             fprint(f, ";\n\n");
-     }
-     
+     fprintSegment(f, indent, "organization", INDENTVALUE);
+     fprint(f, "\n");
+     fprintMultilineString(f, indent, smiModule->organization);
+     fprint(f, ";\n\n");
+     fprintSegment(f, indent, "contact", INDENTVALUE);
+     fprint(f, "\n");
+     fprintMultilineString(f, indent, smiModule->contactinfo);
+     fprint(f, ";\n\n");
+     fprintSegment(f, indent, "description", INDENTVALUE);
+     fprint(f, "\n");
+     fprintMultilineString(f, indent, smiModule->description);
+     fprint(f, ";\n\n");
      if (smiModule->reference) {
 	  fprintSegment(f, indent, "reference", INDENTVALUE);
 	  fprint(f, "\n");
@@ -1231,7 +1212,7 @@ fprintNotificationIndex(FILE *f, int indent,
 	childNode = smiGetElementNode(smiElement);
 	parentNode = smiGetParentNode(childNode);
 	if (childNode != ignoreNode) {
-	    fprintKeyrefLeaf(f, indent, childNode, FLAG_CONFIG_FALSE);
+	    fprintLeafrefLeaf(f, indent, childNode, FLAG_CONFIG_NONE);
 	}
     }
 }
@@ -1315,11 +1296,11 @@ fprintNotification(FILE *f, SmiNode *smiNode)
 	}
 	
 	if (entryNode && isIndex(entryNode, vbNode)) {
-	    fprintKeyrefLeaf(f, INDENT + INDENT + INDENT,
-			     vbNode, FLAG_CONFIG_FALSE);
+	    fprintLeafrefLeaf(f, INDENT + INDENT + INDENT,
+			      vbNode, FLAG_CONFIG_NONE);
 	} else {
 	    fprintLeaf(f, INDENT + INDENT + INDENT,
-		       vbNode, FLAG_CONFIG_FALSE);
+		       vbNode, FLAG_CONFIG_NONE);
 	}
 	fprintSegment(f, INDENT + INDENT, "}\n\n", 0);
     }
@@ -1367,7 +1348,6 @@ dumpYang(int modc, SmiModule **modv, int flags, char *output)
 	}
     }
 
-
     for (i = 0; i < modc; i++) {
 
 	smiModule = modv[i];
@@ -1395,12 +1375,9 @@ dumpYang(int modc, SmiModule **modv, int flags, char *output)
 	fprint(f, "module %s {\n", smiModule->name);
 	fprint(f, "\n");
 
-	fprintNamespaceAndPrefix(f, INDENT, smiModule);
-
-//      TODO: not implemented
-//	fprintLinkage(f, INDENT, smiModule);
-
-        fprintMeta(f, INDENT, smiModule);
+	fprintNamespace(f, INDENT, smiModule);
+	fprintLinkage(f, INDENT, smiModule);
+	fprintMeta(f, INDENT, smiModule);
 	fprintRevisions(f, INDENT, smiModule);
 
 	fprintTypedefs(f, modv[i]);
