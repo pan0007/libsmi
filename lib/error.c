@@ -704,22 +704,8 @@ static Error errors[] = {
       "The identities of IETF MIB modules should be registered below\n"
       "mib-2, transmission, or snmpModules so that the registration\n"
       "space can be controlled by IANA."},
-    { 2, ERR_NAMESPACE_MISSING, "namespace-missing",
-      "module namespace is missing", NULL },
-    { 2, ERR_PREFIX_MISSING, "prefix-missing",
-      "module prefix is missing", NULL },      
     { 2, ERR_INDEX_MISSING, "row-index-missing",
-      "row `%s' lacks index definition", NULL },      
-    { 2, ERR_REDEFINED_NAMESPACE, "namespace-redefined", 
-      "namespace already defined", NULL},
-    { 2, ERR_REDEFINED_YANGVERSION, "yang-version-redefined", 
-      "yang version already defined", NULL},
-    { 2, ERR_REDEFINED_ORGANIZATION, "organization-redefined", 
-      "organization already defined", NULL},
-    { 2, ERR_REDEFINED_CONTACT, "contact-redefined", 
-      "contact already defined", NULL},     
-    { 2, ERR_REDEFINED_ELEMENT, "element-redefined", 
-      "%s already defined", NULL},      
+      "row `%s' lacks index definition", NULL },
     { 0, 0, NULL, NULL, NULL }
 };
 
