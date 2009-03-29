@@ -30,3 +30,46 @@
 #include "error.h"
 #include "util.h"
 #include "snprintf.h"
+
+const char* yandDeclKeyword[] = {   "unknown",
+                                    "module",
+                                    "submodule",
+                                    "revision",
+                                    "import",
+                                    "range",
+                                    "pattern",
+                                    "container",
+                                    "must",
+                                    "leaf",
+                                    "leaf-list",
+                                    "list",
+                                    "case",
+                                    "uses",
+                                    "augument",
+                                    "grouping",
+                                    "choice",
+                                    "argument",
+                                    "rpc",
+                                    "input",
+                                    "output",
+                                    "anyxml",
+                                    "include",
+                                    "organization",
+                                    "contact",
+                                    "namespace",
+                                    "yang-version",
+                                    "prefix",
+                                    "typedef",
+                                    "path",
+                                    "length",
+                                    "type",
+                                    "error-message",
+                                    "error-app-tag",
+                                    "mandatory",
+                                    "notification",
+                                    "extension"
+                               };
+
+int yangIsTrueConf(YangConfig conf) {
+    return conf == YANG_CONFIG_DEFAULT_TRUE || conf == YANG_CONFIG_TRUE;
+}
