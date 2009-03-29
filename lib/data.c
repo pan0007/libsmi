@@ -28,6 +28,7 @@
 #endif
 
 #include "error.h"
+#include "common.h"
 #include "util.h"
 #include "data.h"
 #include "smi.h"
@@ -243,6 +244,7 @@ int isInView(const char *modulename)
 /*
  *----------------------------------------------------------------------
  *
+ * 
  * addModule --
  *
  *      Create a new MIB module.
@@ -4196,6 +4198,7 @@ int smiInitData()
     smiHandle->lastModulePtr = NULL;
     smiHandle->firstViewPtr = NULL;
     smiHandle->lastViewPtr = NULL;
+    smiHandle->firstYangModulePtr = NULL;    
     
     /*
      * Initialize a root Node for the main MIB tree.
@@ -4299,7 +4302,7 @@ int smiInitData()
  *----------------------------------------------------------------------
  */
 
-static void freeNodeTree(Node *rootPtr)
+void freeNodeTree(Node *rootPtr)
 {
     Node       *nodePtr, *nextPtr;
     
@@ -4564,8 +4567,6 @@ void smiFreeData()
     return;
 }
 
-
-
 /*
  *----------------------------------------------------------------------
  *
@@ -4587,101 +4588,16 @@ void smiFreeData()
 Module *loadModule(const char *modulename, Parser *parserPtr)
 {
     Parser	    parser;
-    Parser          *parentParserPtr;
-    char	    *path = NULL, *dir, *smipath;
-    int		    sming = 0;
-    int             c, i;
+    Parser      *parentParserPtr;
+    char	    *path = NULL;
+    SmiLanguage lang = 0;
     FILE	    *file;
-    char	    sep[2];
 
-    static const char *ext[] = {
-	"", ".my", ".smiv1", ".smiv2", ".sming", ".mib", ".txt", NULL
-    };
-    
-    if ((!modulename) || !strlen(modulename)) {
-	return NULL;
-    }
-
-    if (!smiIsPath(modulename)) {
-	/*
-	 * A plain modulename. Lookup the path along SMIPATH...
-	 */
-	if (!smiHandle->path) {
-	    return NULL;
-	}
-	
-	smipath = smiStrdup(smiHandle->path);
-	sep[0] = PATH_SEPARATOR; sep[1] = 0;
-	for (dir = strtok(smipath, sep);
-	     dir; dir = strtok(NULL, sep)) {
-	    for (i = 0; ext[i]; i++) {
-		smiAsprintf(&path, "%s%c%s%s", dir, DIR_SEPARATOR,
-			    modulename, ext[i]);
-		if (! access(path, R_OK)) {
-		    break;
-		}
-		smiFree(path);
-	    }
-	    if (ext[i]) break;
-	    {
-		char *newmodulename = smiStrdup(modulename);
-		for (i = 0; newmodulename[i]; i++) {
-		    newmodulename[i] = tolower(newmodulename[i]);
-		}
-		for (i = 0; ext[i]; i++) {
-		    smiAsprintf(&path, "%s%c%s%s", dir, DIR_SEPARATOR,
-				newmodulename, ext[i]);
-		    if (! access(path, R_OK)) {
-			break;
-		    }
-		    smiFree(path);
-		}
-		smiFree(newmodulename);
-		if (ext[i]) break;
-	    }
-	    
-	    path = NULL;
-	}
-	smiFree(smipath);
-    } else {
-	/*
-	 * A full path. Take it.
-	 */
-	path = smiStrdup(modulename);
-    }
-
-#if !defined(_MSC_VER) && !defined(__MINGW32__)
-    if (!path && smiHandle->cache && smiHandle->cacheProg) {
-	/* Not found in the path; now try to fetch & cache the module. */
-	int  pid;
-	char *argv[4];
-	char *cmd;
-	int  status;
-	smiAsprintf(&path, "%s%c%s",
-		    smiHandle->cache, DIR_SEPARATOR, modulename);
-	if (access(path, R_OK)) {
-	    smiAsprintf(&cmd, "%s %s", smiHandle->cacheProg, modulename);
-	    pid = fork();
-	    if (pid != -1) {
-		if (!pid) {
-		    argv[0] = "sh"; argv[1] = "-c"; argv[2] = cmd; argv[3] = 0;
-		    execv("/bin/sh", argv);
-		    exit(127);
-		}
-		waitpid(pid, &status, 0);
-	    }
-	    smiFree(cmd);
-	    if (access(path, R_OK)) {
-		smiFree(path);
-		path = NULL;
-	    }
-	}
-    }
-#endif
+    path = getModulePath(modulename);
     
     if (!path) {
-	smiPrintError(parserPtr, ERR_MODULE_NOT_FOUND, modulename);
-	return NULL;
+        smiPrintError(parserPtr, ERR_MODULE_NOT_FOUND, modulename);
+        return NULL;
     }
 
     parser.path			= path;
@@ -4693,28 +4609,22 @@ Module *loadModule(const char *modulename, Parser *parserPtr)
 
     file = fopen(path, "r");
     if (! file) {
-	smiPrintError(parserPtr, ERR_OPENING_INPUTFILE, path, strerror(errno));
-	smiFree(path);
-	return NULL;
+        smiPrintError(parserPtr, ERR_OPENING_INPUTFILE, path, strerror(errno));
+        smiFree(path);
+        fclose(file);        
+        return NULL;
     }
-    while ((c = fgetc(file))) {
-	if (c == '-' || isupper(c)) {
-	    sming = 0;
-	    break;
-	} else if (c == '/' || c == 'm') {
-	    sming = 1;
-	    break;
-	} else if (c == EOF || ! isspace(c)) {
-	    smiPrintError(parserPtr, ERR_ILLEGAL_INPUTFILE, path);
-	    smiFree(path);
-	    fclose(file);
-	    return NULL;
-	}
-    }
-    rewind(file);
 
-    
-    if (sming == 0) {
+    lang = getLanguage(file);
+
+    if (lang != SMI_LANGUAGE_SMIV2 && lang != SMI_LANGUAGE_SMING) {
+        smiPrintError(parserPtr, ERR_ILLEGAL_INPUTFILE, path);
+        smiFree(path);
+        fclose(file);
+        return NULL;
+    }
+
+    if (lang == SMI_LANGUAGE_SMIV2) {
 #ifdef BACKEND_SMI
 	parentParserPtr = smiHandle->parserPtr;
 	smiHandle->parserPtr = &parser;
@@ -4757,7 +4667,7 @@ Module *loadModule(const char *modulename, Parser *parserPtr)
 #endif
     }
     
-    if (sming == 1) {
+    if (lang == SMI_LANGUAGE_SMING) {
 #ifdef BACKEND_SMING
 	parentParserPtr = smiHandle->parserPtr;
 	smiHandle->parserPtr = &parser;

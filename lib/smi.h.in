@@ -75,7 +75,8 @@ typedef enum SmiLanguage {
     SMI_LANGUAGE_SMIV1                  = 1,
     SMI_LANGUAGE_SMIV2                  = 2,
     SMI_LANGUAGE_SMING                  = 3,
-    SMI_LANGUAGE_SPPI                   = 4
+    SMI_LANGUAGE_SPPI                   = 4,
+    SMI_LANGUAGE_YANG                   = 5
 } SmiLanguage;
 
 /* SmiBasetype -- base types of all languages                                */
