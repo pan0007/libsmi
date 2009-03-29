@@ -73,16 +73,21 @@ typedef enum YangDecl {
     
 } YangDecl;
 
-typedef char                    *YangIdentifier;
+
+extern const char* yandDeclKeyword[];
+
+typedef char    *YangIdentifier;
 
 /* the truth value of Yang config statement              */
 typedef enum YangConfig {
-     YANG_CONFIG_FALSE                  = 0, 
-     YANG_CONFIG_TRUE                   = 1
+     YANG_CONFIG_DEFAULT_FALSE          = 0, 
+     YANG_CONFIG_DEFAULT_TRUE           = 1,    
+     YANG_CONFIG_FALSE                  = 2, 
+     YANG_CONFIG_TRUE                   = 3
 } YangConfig;
 
 typedef enum YangStatus {
-    YANG_STATUS_UNKNOWN          = 0,
+    YANG_STATUS_DEFAULT_CURRENT  = 0,
     YANG_STATUS_CURRENT          = 1,
     YANG_STATUS_DEPRECATED       = 2,
     YANG_STATUS_OBSOLETE         = 5  /* for compatibility with SMI */
@@ -97,6 +102,8 @@ typedef struct YangNode {
     char		*description;
     char		*reference;       
 } YangNode;
+
+int yangIsTrueConf(YangConfig conf);
 
 #ifdef __cplusplus
 }

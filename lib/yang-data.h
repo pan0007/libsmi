@@ -43,6 +43,8 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr);
 
 _YangModuleInfo *createModuleInfo(_YangNode *modulePtr);
 
+_YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind);
+
 /*
  * YangNode fields setters
  */
@@ -53,6 +55,20 @@ void setStatus(_YangNode *nodePtr, YangStatus status);
 void setDescription(_YangNode *nodePtr, char *description);
 
 void setReference(_YangNode *nodePtr, char *reference);
+
+/*
+ * Uniqueness checks
+ */
+
+void uniqueConfig(_YangNode *nodePtr);
+
+void uniqueStatus(_YangNode *nodePtr);
+
+void uniqueDescription(_YangNode *nodePtr);
+
+void uniqueReference(_YangNode *nodePtr);
+
+void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
 
 #endif /* _YANG_DATA_H */
 

@@ -159,18 +159,6 @@ static _YangModuleInfo *currentModuleInfo = NULL;
 static _YangNode *node = NULL;
 
 
-/*
- *  Some boolean flags that are used while parsing to check the uniqness of the child nodes;
- */
-// TODO: CLEAN
-static int extensionFlags[4];
-
-#define FLAG_EXT_ARGUMENT       0
-#define FLAG_EXT_STATUS         1
-#define FLAG_EXT_DESCRIPTION    2
-#define FLAG_EXT_REFERENCE      3 
-
-
 /*static Type *findType(char* spec)
 {
 	Type *typePtr = NULL;
@@ -814,29 +802,23 @@ contactStatement:	contactKeyword string stmtEnd
 
 descriptionStatement:	descriptionKeyword string stmtEnd
 			{
-                if(!topNode()->export.description) {
-                    setDescription(topNode(), $2);
-                } else {
-                    smiPrintError(currentParser, ERR_REDEFINED_DESCRIPTION, NULL);
-                }               
+                uniqueDescription(topNode());
+                setDescription(topNode(), $2);
                 $$ = 1;
 			}
 	;
 
 referenceStatement:	referenceKeyword string stmtEnd
 			{
-                if(!topNode()->export.reference) {
-                    setReference(topNode(), $2);
-                } else {
-                    smiPrintError(currentParser, ERR_REDEFINED_REFERENCE, NULL);
-                }               
+                uniqueReference(topNode());
+                setReference(topNode(), $2);
 				$$ = 1;
 			}
 	;
 
 statusStatement:	statusKeyword status stmtEnd
 			{
-                // TODO: there is no uniqueness validation
+                uniqueStatus(topNode());
                 setStatus(topNode(), $2);
                 $$ = 1;
 			}
@@ -2032,8 +2014,6 @@ anyXMLSubstatement:	descriptionStatement
 
 extensionStatement: extensionKeyword identifier
 		{
-            // TODO:
-            //memset(extensionFlags, 0, sizeof(extensionFlags));
 			node = addYangNode($2, YANG_DECL_EXTENSION, topNode());
             pushNode(node);
 		}
@@ -2054,7 +2034,7 @@ extensionSubstatement_0n:
 				$$ = 1;
 			}
 		|
-                                extensionSubstatement_0n extensionSubstatement stmtSep
+            extensionSubstatement_0n extensionSubstatement stmtSep
 			{
 				$$ = 1 + $1;
 			}
@@ -2070,18 +2050,11 @@ extensionSubstatement:	argumentStatement
 		;
 
 argumentStatement: argumentKeyword identifier
-		{
-            // TODO:
-            if (!extensionFlags[FLAG_EXT_ARGUMENT]) {
+            {
+                uniqueNodeKind(topNode(), YANG_DECL_ARGUMENT);
                 addYangNode($2, YANG_DECL_ARGUMENT, topNode());
-            } else {
-                    smiPrintError(parserPtr,
-                                  ERR_REDEFINED_ELEMENT,
-                                  "argument");
             }
-            extensionFlags[FLAG_EXT_ARGUMENT] = 1;
-		}
-                argumentStatementBody
+                    argumentStatementBody
 		;
 
 argumentStatementBody:  '{' stmtSep '}'

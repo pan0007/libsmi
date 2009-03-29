@@ -14,6 +14,8 @@
 
 #include <config.h>
 
+#include "yang.h"
+
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -49,7 +51,7 @@ extern Parser *currentParser;
  */
 void setConfig(_YangNode *nodePtr, YangConfig config)
 {
-    if (config == YANG_CONFIG_TRUE && nodePtr->export.config == YANG_CONFIG_FALSE) {
+    if (config == YANG_CONFIG_TRUE && nodePtr->export.config == YANG_CONFIG_DEFAULT_FALSE) {
         smiPrintError(currentParser, ERR_INVALID_CONFIG_VALUE);
     } else {
         nodePtr->export.config = config;
@@ -58,7 +60,7 @@ void setConfig(_YangNode *nodePtr, YangConfig config)
 
 void setStatus(_YangNode *nodePtr, YangStatus status)
 {
-	nodePtr->export.status = status;
+    nodePtr->export.status = status;
 }
 
 void setDescription(_YangNode *nodePtr, char *description)
@@ -75,6 +77,42 @@ void setReference(_YangNode *nodePtr, char *reference)
     nodePtr->export.reference = smiStrdup(reference);
 }
 
+/*
+ * Uniqueness checks
+ */
+void uniqueConfig(_YangNode *nodePtr)
+{
+    if (nodePtr->export.config == YANG_CONFIG_DEFAULT_FALSE || nodePtr->export.config == YANG_CONFIG_DEFAULT_TRUE) return;
+    smiPrintError(currentParser, ERR_REDEFINED_ELEMENT, "config");    
+}
+
+void uniqueStatus(_YangNode *nodePtr)
+{
+    if (nodePtr->export.status != YANG_STATUS_DEFAULT_CURRENT) {
+        smiPrintError(currentParser, ERR_REDEFINED_ELEMENT, "status");
+    }
+}
+
+void uniqueDescription(_YangNode *nodePtr) 
+{
+    if(nodePtr->export.description) {
+        smiPrintError(currentParser, ERR_REDEFINED_DESCRIPTION, NULL);
+    }
+}
+
+void uniqueReference(_YangNode *nodePtr) 
+{
+    if(nodePtr->export.reference) {
+        smiPrintError(currentParser, ERR_REDEFINED_REFERENCE, NULL);
+    }
+}
+
+void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind) 
+{
+    if (findChildNodeByType(nodePtr, nodeKind)) {
+        smiPrintError(currentParser, ERR_REDEFINED_ELEMENT, yandDeclKeyword[nodeKind]);
+    }
+}
 
 /*
  *----------------------------------------------------------------------
@@ -85,7 +123,7 @@ void setReference(_YangNode *nodePtr, char *reference)
  *
  * Results:
  *      A pointer to the _YangNode structure or
- *	NULL if it is not found.
+ *      NULL if it is not found.
  *
  * Side effects:
  *      None.
@@ -105,6 +143,31 @@ _YangNode *yangFindModuleByName(const char *modulename)
     return (NULL);
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * findChildNodeByType --
+ *
+ *      Lookup a child node by a given type.
+ *
+ * Results:
+ *      A pointer to the _YangNode structure or
+ *      NULL if it is not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+_YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind) {
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        if (childPtr->export.nodeKind == nodeKind) {
+            return childPtr;
+        }
+    }
+    return NULL;
+}
 
  /*----------------------------------------------------------------------
  *
@@ -143,8 +206,8 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
 	node->export.nodeKind       = nodeKind;
     node->export.description	= NULL;
     node->export.reference		= NULL;
-    node->export.config         = YANG_CONFIG_TRUE;
-    node->export.status         = YANG_STATUS_CURRENT;
+    node->export.config         = YANG_CONFIG_DEFAULT_TRUE;
+    node->export.status         = YANG_STATUS_DEFAULT_CURRENT;
     
     node->info                  = NULL;    
     
@@ -157,7 +220,11 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
 	{
         node->modulePtr         = parentPtr->modulePtr;
 		//inherit Config value. This is changed later, if there is config statement, for this node
-		node->export.config = parentPtr->export.config;
+        if (yangIsTrueConf(parentPtr->export.config)) {
+            node->export.config = YANG_CONFIG_DEFAULT_TRUE;
+        } else {
+            node->export.config = YANG_CONFIG_DEFAULT_FALSE;
+        }
 		
 		if(parentPtr->lastChildPtr)
 		{
@@ -273,3 +340,4 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
     fclose(file);
     return NULL;
 }
+
