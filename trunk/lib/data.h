@@ -18,7 +18,7 @@
 #include <stdio.h>
 
 #include "smi.h"
-
+#include "yang-data.h"
 
 
 typedef struct List {
@@ -298,6 +298,7 @@ typedef struct Parser {
     int		   line;
     int		   lcline;		/* for SMI comment warning */
     Module	   *modulePtr;
+    _YangNode *yangModulePtr;
     ParserFlags	   flags;
     List	   *firstIndexlabelPtr; /* only for the SMIng parser */
     char	   *identityObjectName; /* only for the SMIng parser */
@@ -321,6 +322,7 @@ typedef struct Handle {
     View     	    *lastViewPtr;
     Module   	    *firstModulePtr;
     Module   	    *lastModulePtr;
+    _YangNode       *firstYangModulePtr; /* List of YANG modules*/
     Node     	    *rootNodePtr;
     Type     	    *typeOctetStringPtr;
     Type     	    *typeObjectIdentifierPtr;
@@ -750,6 +752,8 @@ extern NamedNumber *findNamedNumberByName(Type *typePtr,
 extern int smiInitData(void);
 
 extern void smiFreeData(void);
+
+extern SmiLanguage guessLanguage(const char *modulename);
 
 extern Module *loadModule(const char *modulename, Parser *parserPtr);
 

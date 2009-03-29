@@ -704,8 +704,24 @@ static Error errors[] = {
       "The identities of IETF MIB modules should be registered below\n"
       "mib-2, transmission, or snmpModules so that the registration\n"
       "space can be controlled by IANA."},
+    { 2, ERR_NAMESPACE_MISSING, "namespace-missing",
+      "module namespace is missing", NULL },
+    { 2, ERR_PREFIX_MISSING, "prefix-missing",
+      "module prefix is missing", NULL },      
     { 2, ERR_INDEX_MISSING, "row-index-missing",
-      "row `%s' lacks index definition", NULL },
+      "row `%s' lacks index definition", NULL },      
+    { 2, ERR_REDEFINED_NAMESPACE, "namespace-redefined", 
+      "namespace is already defined", NULL},
+    { 2, ERR_REDEFINED_YANGVERSION, "yang-version-redefined", 
+      "yang version is already defined", NULL},
+    { 2, ERR_REDEFINED_ORGANIZATION, "organization-redefined", 
+      "organization is already defined", NULL},
+    { 2, ERR_REDEFINED_CONTACT, "contact-redefined", 
+      "contact is already defined", NULL},     
+    { 2, ERR_REDEFINED_ELEMENT, "element-redefined", 
+      "%s is already defined", NULL},      
+    { 2, ERR_INVALID_CONFIG_VALUE, "invalid-config-value", 
+      "wrong config value", NULL},      
     { 0, 0, NULL, NULL, NULL }
 };
 
@@ -970,27 +986,26 @@ printError(Parser *parser, int id, int line, va_list ap)
     }
 
     if (parser) {
+        if (parser->modulePtr) {
+            if ((parser->modulePtr->export.conformance > errors[i].level) ||
+            (parser->modulePtr->export.conformance == 0)) {
+            parser->modulePtr->export.conformance = errors[i].level;
+            }
+        }
 
-	if (parser->modulePtr) {
-	    if ((parser->modulePtr->export.conformance > errors[i].level) ||
-		(parser->modulePtr->export.conformance == 0)) {
-		parser->modulePtr->export.conformance = errors[i].level;
-	    }
-	}
-	
-	if ((errors[i].level <= smiHandle->errorLevel) &&
-	    (parser->flags & SMI_FLAG_ERRORS) &&
-	    ((smiDepth == 1) || (parser->flags & SMI_FLAG_RECURSIVE))) {
-	    smiVasprintf(&buffer, errors[i].fmt, ap);
-	    (smiHandle->errorHandler) (parser->path, line,
-				       errors[i].level, buffer, errors[i].tag);
-	}
-    } else {
-	if (errors[i].level <= smiHandle->errorLevel) {
-	    smiVasprintf(&buffer, errors[i].fmt, ap);
-	    (smiHandle->errorHandler) (NULL, 0, errors[i].level,
-				       buffer, errors[i].tag);
-	}
+        if ((errors[i].level <= smiHandle->errorLevel) &&
+            (parser->flags & SMI_FLAG_ERRORS) &&
+            ((smiDepth == 1) || (parser->flags & SMI_FLAG_RECURSIVE))) {
+            smiVasprintf(&buffer, errors[i].fmt, ap);
+            (smiHandle->errorHandler) (parser->path, line,
+                           errors[i].level, buffer, errors[i].tag);
+        }
+        } else {
+        if (errors[i].level <= smiHandle->errorLevel) {
+            smiVasprintf(&buffer, errors[i].fmt, ap);
+            (smiHandle->errorHandler) (NULL, 0, errors[i].level,
+                           buffer, errors[i].tag);
+        }
     }
 }
 

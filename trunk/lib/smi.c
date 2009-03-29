@@ -27,7 +27,9 @@
 #endif
 
 #include "smi.h"
+#include "common.h"
 #include "data.h"
+#include "yang-data.h"
 #include "error.h"
 #include "util.h"
 #include "snprintf.h"
@@ -193,7 +195,7 @@ int smiInit(const char *tag)
 
     smiHandle = findHandleByName(tag);
     if (smiHandle) {
-	return 0;
+        return 0;
     }
     smiHandle = addHandle(tag);
     
@@ -207,7 +209,7 @@ int smiInit(const char *tag)
 #endif
     
     if (smiInitData()) {
-	return -1;
+        return -1;
     }
 
     /*
@@ -270,6 +272,8 @@ void smiExit()
 	return;
 
     smiFreeData();
+    
+    // TODO: free YANG structures
 
     smiFree(smiHandle->path);
 #if !defined(_MSC_VER)
@@ -405,44 +409,52 @@ int smiIsLoaded(const char *module)
 }
 
 
+extern _YangNode *loadYangModule(const char *modulename, Parser *parserPtr);
 
 char *smiLoadModule(const char *module)
 {
-    Module *modulePtr;
-    
     if (!smiHandle) smiInit(NULL);
-
-    if (smiIsPath(module)) {
-
-	modulePtr = loadModule(module, NULL);
-
-	if (modulePtr) {
-	    if (!isInView(modulePtr->export.name)) {
-		addView(modulePtr->export.name);
-	    }
-	    return modulePtr->export.name;
-	} else {
-	    return NULL;
-	}
-
+    
+    SmiLanguage lang = guessLanguage(module);
+    
+    if (lang == SMI_LANGUAGE_YANG) {
+        _YangNode *yangModulePtr = loadYangModule(module, NULL);;
+        if (yangModulePtr) {
+            return yangModulePtr->export.value;
+        } else {
+            return NULL;
+        }
     } else {
-	
-	if ((modulePtr = findModuleByName(module))) {
-	    /* already loaded. */
-	    if (!isInView(module)) {
-		addView(module);
-	    }
-	    return modulePtr->export.name;
-	} else {
-	    if ((modulePtr = loadModule(module, NULL))) {
-		if (!isInView(module)) {
-		    addView(module);
-		}
-		return modulePtr->export.name;
-	    } else {
-		return NULL;
-	    }
-	}
+        Module *modulePtr;
+        if (smiIsPath(module)) {
+            modulePtr = loadModule(module, NULL);
+
+            if (modulePtr) {
+                if (!isInView(modulePtr->export.name)) {
+                    addView(modulePtr->export.name);
+                }
+                return modulePtr->export.name;
+            } else {
+                return NULL;
+            }
+        } else {	
+            if ((modulePtr = findModuleByName(module))) {
+                /* already loaded. */
+                if (!isInView(module)) {
+                    addView(module);
+                }
+                return modulePtr->export.name;
+            } else {
+                if ((modulePtr = loadModule(module, NULL))) {
+                    if (!isInView(module)) {
+                        addView(module);
+                    }
+                    return modulePtr->export.name;
+                } else {
+                    return NULL;
+                }
+            }
+        }
     }
 }
  
