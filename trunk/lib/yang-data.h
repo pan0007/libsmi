@@ -45,6 +45,7 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr);
 
 _YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind);
 
+_YangNode *importModule(_YangNode *importNode);
 /*
  * YangNode fields setters
  */

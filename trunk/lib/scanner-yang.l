@@ -311,11 +311,9 @@ UTFCHAR 	([_a-zA-Z0-9\200-\377])
   * introduces a trailing context which is slow. To avoid it we add two rules for single line comments.
   */
 <INITIAL>(\/){2}({WSP}|{VCHAR})*/{LF} {
-	thisParser.line++;
 }
 
 <INITIAL>(\/){2}({WSP}|{VCHAR})*/{CRLF} {
-	thisParser.line++;
 }
 
 <INITIAL>"/*"([^\*]|(\*[^/]))*"*/"  {

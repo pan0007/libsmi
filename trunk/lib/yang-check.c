@@ -33,6 +33,7 @@
 
 
 #define SMI_EPOCH	631152000	/* 01 Jan 1990 00:00:00 */ 
+
 time_t checkDate(Parser *parserPtr, char *date)
 {
     struct tm	tm;
