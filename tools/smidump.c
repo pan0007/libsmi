@@ -350,6 +350,7 @@ int main(int argc, char *argv[])
     initXsd();
     initCompliances();
     initYang();
+    initYangSK();
     initBoilerplate();
     
     for (i = 1; i < argc; i++)
@@ -396,33 +397,34 @@ int main(int argc, char *argv[])
     modc = 0;
     
     for (i = 1; i < argc; i++) {
-	modulename = smiLoadModule(argv[i]);
-	smiModule = modulename ? smiGetModule(modulename) : NULL;
-	if (smiModule) {
-	    if ((smiModule->conformance) && (smiModule->conformance < 3)) {
-		flags |= SMIDUMP_FLAG_ERROR;
-		if (! (flags & SMIDUMP_FLAG_SILENT)) {
-		    fprintf(stderr,
-			    "smidump: module `%s' contains errors, "
-			    "expect flawed output\n",
-			    argv[i]);
-		}
-	    }
-	    modv[modc++] = smiModule;
-	} else {
-	    fprintf(stderr, "smidump: cannot locate module `%s'\n",
-		    argv[i]);
-	}
+        modulename = smiLoadModule(argv[i]);
+        
+        smiModule = modulename ? smiGetModule(modulename) : NULL;
+        if (smiModule) {
+            if ((smiModule->conformance) && (smiModule->conformance < 3)) {
+                flags |= SMIDUMP_FLAG_ERROR;
+                if (! (flags & SMIDUMP_FLAG_SILENT)) {
+                    fprintf(stderr,
+                        "smidump: module `%s' contains errors, "
+                        "expect flawed output\n",
+                        argv[i]);
+                }
+            }
+            modv[modc++] = smiModule;
+        } else {
+            fprintf(stderr, "smidump: cannot locate module `%s'\n",
+                argv[i]);
+        }
     }
 
     if (! (flags & SMIDUMP_FLAG_ERROR) || kFlag) {
-	(driver->func)(modc, modv, flags, output);
+        (driver->func)(modc, modv, flags, output);
     } else {
-	if (! (flags & SMIDUMP_FLAG_SILENT)) {
-	    fprintf(stderr,
-		    "smidump: aborting due to severe parsing errors\n"
-		    "smidump: use the -k option to force continuation\n");
-	}
+        if (! (flags & SMIDUMP_FLAG_SILENT)) {
+            fprintf(stderr,
+                "smidump: aborting due to severe parsing errors\n"
+                "smidump: use the -k option to force continuation\n");
+        }
     }
 
     smiExit();
