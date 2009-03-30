@@ -76,7 +76,7 @@ typedef enum YangDecl {
 
 extern const char* yandDeclKeyword[];
 
-typedef char    *YangIdentifier;
+typedef char    *YangString;
 
 /* the truth value of Yang config statement              */
 typedef enum YangConfig {
@@ -95,7 +95,7 @@ typedef enum YangStatus {
 
 
 typedef struct YangNode {
-    YangIdentifier	value;
+    YangString      value;
     YangDecl		nodeKind;
     YangStatus		status;
     YangConfig		config;

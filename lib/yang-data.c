@@ -194,6 +194,9 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr)
     infoPtr->version       = NULL;
     infoPtr->organization  = NULL;
     infoPtr->contact       = NULL;
+
+    // create a Module wrapper to maintain interface compatibility
+    Module *module = addModule(modulePtr->export.value, smiStrdup(currentParser->path), 0, currentParser);
     
     return (infoPtr);
 }
@@ -242,6 +245,36 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
     }
     return node;
 }
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * findYangModuleByName --
+ *
+ *      Lookup a YANG Module by a given name.
+ *
+ * Results:
+ *      A pointer to the _YangModule structure or
+ *      NULL if it is not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+_YangNode *findYangModuleByName(const char *modulename)
+{
+    _YangNode *modulePtr;
+
+    for (modulePtr = smiHandle->firstYangModulePtr; modulePtr; modulePtr = modulePtr->nextSiblingPtr) {
+        if ((modulePtr->export.value) && !strcmp(modulePtr->export.value, modulename)) {
+            return (modulePtr);
+        }
+    }
+
+    return (NULL);
+}
+
 
 /*
  *----------------------------------------------------------------------

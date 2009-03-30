@@ -37,7 +37,7 @@ typedef struct _YangModuleInfo {
     char        *contact;
 } _YangModuleInfo;
 
-_YangNode *yangFindModuleByName(const char *modulename);
+_YangNode *findYangModuleByName(const char *modulename);
 
 _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr);
 

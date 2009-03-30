@@ -4302,7 +4302,7 @@ int smiInitData()
  *----------------------------------------------------------------------
  */
 
-void freeNodeTree(Node *rootPtr)
+static void freeNodeTree(Node *rootPtr)
 {
     Node       *nodePtr, *nextPtr;
     
