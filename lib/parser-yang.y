@@ -604,7 +604,7 @@ yangFile:		moduleStatement
 
 moduleStatement:	moduleKeyword identifier
 			{
-                thisParserPtr->yangModulePtr = yangFindModuleByName($2);
+                thisParserPtr->yangModulePtr = findYangModuleByName($2);
 			    if (!thisParserPtr->yangModulePtr) {
                     thisParserPtr->yangModulePtr =  addYangNode($2, YANG_DECL_MODULE, NULL);
                     
@@ -920,29 +920,22 @@ importStatement: importKeyword identifier
 		{
             node = addYangNode($2, YANG_DECL_IMPORT, topNode());
 			pushNode(node);
-/*
-			Module *m = findModuleByName($2);			
-			if(!m)
-			{
-				m = loadModule($2, currentParser);
-			}
-			if(m)
-			{		    
-                Import *im = addImport("", currentParser);
-                setImportModulename(im, m->export.name);
-                currentImport = im;
-			} else {
-				smiPrintError(thisParserPtr, ERR_IMPORT_NOT_FOUND, $2);
-			}*/
 		}
 		'{'
             stmtSep
 			prefixStatement stmtSep
+            importRevision
 		'}'
 		{
+            importModule(node);
 			pop();
 		}
         ;
+
+importRevision:
+                    |
+                      revisionStatement stmtSep 
+                    ;
 
 includeStatement: includeKeyword identifier
 		{

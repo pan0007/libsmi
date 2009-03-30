@@ -131,7 +131,8 @@ void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind)
  *----------------------------------------------------------------------
  */
 
-_YangNode *yangFindModuleByName(const char *modulename)
+
+_YangNode *findYangModuleByName(const char *modulename)
 {
     _YangNode	*modulePtr;
 
@@ -197,7 +198,7 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr)
 
     // create a Module wrapper to maintain interface compatibility
     Module *module = addModule(modulePtr->export.value, smiStrdup(currentParser->path), 0, currentParser);
-    
+    currentParser->modulePtr = module;
     return (infoPtr);
 }
 
@@ -246,10 +247,11 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
     return node;
 }
 
+
 /*
  *----------------------------------------------------------------------
  *
- * findYangModuleByName --
+ * importModule --
  *
  *      Lookup a YANG Module by a given name.
  *
@@ -262,19 +264,23 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
  *
  *----------------------------------------------------------------------
  */
-_YangNode *findYangModuleByName(const char *modulename)
-{
-    _YangNode *modulePtr;
-
-    for (modulePtr = smiHandle->firstYangModulePtr; modulePtr; modulePtr = modulePtr->nextSiblingPtr) {
-        if ((modulePtr->export.value) && !strcmp(modulePtr->export.value, modulename)) {
-            return (modulePtr);
-        }
-    }
-
-    return (NULL);
+_YangNode *importModule(_YangNode *importNode) {
+    return NULL;
 }
-
+/*    _YangNode *importedModule = findModuleByName($2);			
+			if(!m)
+			{
+				m = loadModule($2, currentParser);
+			}
+			if(m)
+			{		    
+                Import *im = addImport("", currentParser);
+                setImportModulename(im, m->export.name);
+                currentImport = im;
+			} else {
+				smiPrintError(thisParserPtr, ERR_IMPORT_NOT_FOUND, $2);
+			}*/
+      
 
 /*
  *----------------------------------------------------------------------
