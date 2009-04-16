@@ -5,6 +5,6 @@ submodule submodule {
 	}
 
 	typedef type1 {
-		type int8;
+		type string;
 	}
 }

@@ -123,6 +123,7 @@ time_t checkDate(Parser *parserPtr, char *date)
 }
 
 void validateInclude(_YangNode *module, _YangNode *extModule) {
+    if (!extModule) return;
     _YangNode* node = findChildNodeByType(extModule, YANG_DECL_BELONGS_TO);
     if (node) {
         if (strcmp(node->export.value, module->export.value)) {

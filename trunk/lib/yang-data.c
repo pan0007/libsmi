@@ -136,6 +136,16 @@ int getCardinality(_YangNode *nodePtr, YangDecl nodeKind)
     return ret;
 }
 
+/* ----------------------------------------------------------------------
+ *
+ *  Utils
+ *
+ * ----------------------------------------------------------------------
+ */
+_YangModuleInfo* getModuleInfo(_YangNode* module) {
+    return (_YangModuleInfo*)module->info;
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -245,7 +255,7 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr)
     infoPtr->organization  = NULL;
     infoPtr->contact       = NULL;
     infoPtr->parsingState  = YANG_PARSING_IN_PROGRESS;
-
+    infoPtr->submodules    = NULL;
     // create a corresponding Module wrapper to maintain interface compatibility
     Module *module = addModule(smiStrdup(modulePtr->export.value), smiStrdup(currentParser->path), 0, currentParser);
     currentParser->modulePtr = module;
@@ -353,15 +363,12 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
     }
 
     parser.path			= path;
-
     file = fopen(path, "r");
     if (! file) {
         smiPrintError(parserPtr, ERR_OPENING_INPUTFILE, path, strerror(errno));
         smiFree(path);
-        fclose(file);        
         return NULL;
     }
-
     lang = getLanguage(file);
 
     if (lang != SMI_LANGUAGE_YANG) {
@@ -426,9 +433,75 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
 /*
  *----------------------------------------------------------------------
  *
- * importModule --
+ * addSubmodule --
  *
- *      Lookup a YANG Module by a given name.
+ *      Add an included submodule to the module or submodule
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+void addSubmodule(_YangNode *module, _YangNode *submodule) {
+    _YangNodeList* cur = ((_YangModuleInfo*)module->info)->submodules;
+    while (cur) {
+        if (cur->nodePtr == submodule) return;
+        cur = cur->next;
+    }
+    _YangNodeList *nodeListPtr = smiMalloc(sizeof(_YangNodeList));
+    nodeListPtr->nodePtr = submodule;
+    nodeListPtr->next = ((_YangModuleInfo*)module->info)->submodules;
+    ((_YangModuleInfo*)module->info)->submodules = nodeListPtr;
+    
+    /* go through all child submodules included by the current submodule and add them to the module as well */
+    cur = ((_YangModuleInfo*)submodule->info)->submodules;
+    while (cur) {
+        addSubmodule(module, cur->nodePtr);
+        cur = cur->next;
+    }    
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * addImportedModule --
+ *
+ *      Add an imported module to the module or submodule
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+void addImportedModule(_YangNode *importNode, _YangNode *importedModule) {
+    char* prefix = getModuleInfo(importNode->modulePtr)->prefix;
+    char* importPrefix = findChildNodeByType(importNode, YANG_DECL_PREFIX)->export.value;
+
+    if (!strcmp(prefix, importPrefix)) {
+        smiPrintError(currentParser, ERR_DUPLICATED_PREFIX, importPrefix);
+    }
+    
+    _YangImportList* cur = ((_YangModuleInfo*)importNode->modulePtr->info)->imports;
+    while (cur) {
+        if (!strcmp(cur->prefix, importPrefix)) {
+            smiPrintError(currentParser, ERR_DUPLICATED_PREFIX, importPrefix);
+        }
+        cur = cur->next;
+    }
+
+    _YangImportList *importPtr = smiMalloc(sizeof(_YangImportList));
+    importPtr->prefix = importPrefix;
+    importPtr->modulePtr = importedModule;
+    importPtr->next = ((_YangModuleInfo*)importNode->modulePtr->info)->imports;
+    ((_YangModuleInfo*)importNode->modulePtr->info)->imports = importPtr;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * externalModule --
+ *
+ *      Lookup a YANG Module or Submodule by a given name.
  *
  * Results:
  *      A pointer to the _YangModule structure or
@@ -446,26 +519,25 @@ _YangNode *externalModule(_YangNode *importNode) {
         smiPrintError(currentParser, ERR_CYCLIC_IMPORTS, importNode->modulePtr->export.value, importedModule->export.value);
     }
     
-    if(!importedModule)
-    {
+    if(!importedModule) {
         Parser* tempParser = currentParser;
         importedModule = loadYangModule(importNode->export.value, currentParser);
         currentParser = tempParser;
     }
   
-    if(importedModule && !strcmp(importNode->export.value, importedModule->export.value))
-    {		
-        /* there are critical errors in the imported module*/
-        /*if (((_YangModuleInfo*)importedModule->info)->conformance && ((_YangModuleInfo*)importedModule->info)->conformance < 3) {
-            smiPrintError(currentParser, ERR_IMPORT_NOT_FOUND, importNode->export.value);
-        }*/
-        // TODO: process imported module
+    if(importedModule && !strcmp(importNode->export.value, importedModule->export.value)) {		
+        if (importNode->export.nodeKind == YANG_DECL_INCLUDE) {
+            addSubmodule(importNode->modulePtr, importedModule);
+        } else if (importNode->export.nodeKind == YANG_DECL_IMPORT) {
+            addImportedModule(importNode, importedModule);
+        }
         return importedModule;
     } else {
         smiPrintError(currentParser, ERR_IMPORT_NOT_FOUND, importNode->export.value);
     }    
     return NULL;
 }
+
 
 /*
  *----------------------------------------------------------------------
@@ -489,6 +561,20 @@ void freeYangNode(_YangNode *nodePtr) {
     nodePtr->export.description = NULL;
     nodePtr->export.reference = NULL;
     
+    if (nodePtr->export.nodeKind == YANG_DECL_MODULE || nodePtr->export.nodeKind == YANG_DECL_SUBMODULE) {
+        _YangNodeList *cur = getModuleInfo(nodePtr)->submodules;
+        while (cur) {
+            _YangNodeList *next = cur->next;
+            smiFree(cur);
+            cur = next;
+        }
+        _YangImportList *curImport = getModuleInfo(nodePtr)->imports;
+        while (curImport) {
+            _YangImportList *next = curImport->next;
+            smiFree(curImport);
+            curImport = next;
+        }        
+    }
     
     smiFree(nodePtr->info);
     nodePtr->info = NULL;
