@@ -69,12 +69,42 @@ typedef enum YangDecl {
     YANG_DECL_ERROR_APP_TAG             = 33,                /* error-app-tag */
     YANG_DECL_MANDATORY                 = 34,                /* mandatory */
     YANG_DECL_NOTIFICATION              = 35,                /* notification */
-    YANG_DECL_EXTENSION                 = 36                /* extention */
-    
+    YANG_DECL_EXTENSION                 = 36,                /* extention */
+    YANG_DECL_BELONGS_TO                = 37,                /* belongs-to */
+    YANG_DECL_YIN_ELEMENT               = 38,                /* yin-element */
+    YANG_DECL_UNKNOWN_STATEMENT         = 39,
+    YANG_DECL_DESCRIPTION               = 40,
+    YANG_DECL_REFERENCE                 = 41,
+    YANG_DECL_STATUS                    = 42,
+    YANG_DECL_CONFIG                    = 43,
+    YANG_DECL_ENUM                      = 44,
+    YANG_DECL_VALUE                     = 45,
+    YANG_DECL_REQUIRE_INSTANCE          = 46,
+    YANG_DECL_BASE                      = 47,
+    YANG_DECL_BIT                       = 48,
+    YANG_DECL_POSITION                  = 49,
+    YANG_DECL_UNITS                     = 50,
+    YANG_DECL_DEFAULT                   = 51,
+    YANG_DECL_FEATURE                   = 52,
+    YANG_DECL_IF_FEATURE                = 53,
+    YANG_DECL_IDENTITY                  = 54,
+    YANG_DECL_PRESENCE                  = 55,
+    YANG_DECL_WHEN                      = 56,
+    YANG_DECL_MIN_ELEMENTS              = 57,
+    YANG_DECL_MAX_ELEMENTS              = 58,
+    YANG_DECL_ORDERED_BY                = 59,
+    YANG_DECL_KEY                       = 60,
+    YANG_DECL_UNIQUE                    = 61,
+    YANG_DECL_REFINE                    = 62,
+    YANG_DECL_DEVIATION                 = 63,
+    YANG_DECL_DEVIATE                   = 64
+            
 } YangDecl;
 
 
 extern const char* yandDeclKeyword[];
+
+extern const char* statusKeywords[];
 
 typedef char    *YangString;
 
@@ -93,15 +123,37 @@ typedef enum YangStatus {
     YANG_STATUS_OBSOLETE         = 5  /* for compatibility with SMI */
 } YangStatus;
 
+/* the truth value of Yang config statement              */
+typedef enum YangBoolean {
+     YANG_BOOLEAN_FALSE                  = 2,
+     YANG_BOOLEAN_TRUE                   = 3
+} YangBoolean;
+
 
 typedef struct YangNode {
-    YangString      value;
+    YangString      value;       // 'name' or 'argument' of the statement
+    YangString      extra;       // extra data, used to store some additional information, e.g. for the 'unknown' statement
     YangDecl		nodeKind;
     YangStatus		status;
     YangConfig		config;
     char		*description;
-    char		*reference;       
+    char		*reference;
 } YangNode;
+
+/*
+ * YANG API
+ */
+extern int yangIsModule(const char* modulename);
+
+extern YangNode *yangGetModule(char *modulename);
+
+extern YangNode *yangGetFirstChildNode(YangNode *yangNodePtr);
+
+extern YangNode *yangGetNextSibling(YangNode *yangNodePtr);
+
+extern YangNode *yangGetFirstModule(void);
+
+extern YangNode *yangGetNextModule(YangNode *yangModulePtr);
 
 int yangIsTrueConf(YangConfig conf);
 

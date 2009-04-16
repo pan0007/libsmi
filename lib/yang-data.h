@@ -29,23 +29,33 @@ typedef struct _YangNode {
     struct _YangNode  	*modulePtr;
 } _YangNode;
 
+/* _YangParseState -- reflects the current state of the module processing state      */
+typedef enum _YangParsingState {
+    YANG_PARSING_IN_PROGRESS       = 0,  /* should not occur            */
+    YANG_PARSING_DONE              = 1
+} _YangParsingState;
+
 typedef struct _YangModuleInfo {
     char		*prefix;
 	char		*version;
     char		*namespace;
     char        *organization;
     char        *contact;
+    _YangParsingState parsingState;
+    int         conformance;
 } _YangModuleInfo;
 
 _YangNode *findYangModuleByName(const char *modulename);
 
-_YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr);
+_YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr);
 
 _YangModuleInfo *createModuleInfo(_YangNode *modulePtr);
 
 _YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind);
 
-_YangNode *importModule(_YangNode *importNode);
+_YangNode* findChildNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value);
+
+_YangNode *externalModule(_YangNode *importNode);
 /*
  * YangNode fields setters
  */
@@ -70,6 +80,14 @@ void uniqueDescription(_YangNode *nodePtr);
 void uniqueReference(_YangNode *nodePtr);
 
 void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
+
+void presenceNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
+
+int getCardinality(_YangNode *nodePtr, YangDecl nodeKind);
+/*
+ *  Free YANG datastructures
+ */
+void yangFreeData();
 
 #endif /* _YANG_DATA_H */
 

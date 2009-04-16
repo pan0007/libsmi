@@ -4198,7 +4198,7 @@ int smiInitData()
     smiHandle->lastModulePtr = NULL;
     smiHandle->firstViewPtr = NULL;
     smiHandle->lastViewPtr = NULL;
-    smiHandle->firstYangModulePtr = NULL;    
+    smiHandle->firstYangModulePtr = NULL;
     
     /*
      * Initialize a root Node for the main MIB tree.
@@ -4445,10 +4445,6 @@ void smiFreeData()
 		
 	    }
 	    smiFree(objectPtr);
-	    
-	    
-	    
-	    
 	}
 	
 
@@ -4592,7 +4588,6 @@ Module *loadModule(const char *modulename, Parser *parserPtr)
     char	    *path = NULL;
     SmiLanguage lang = 0;
     FILE	    *file;
-
     path = getModulePath(modulename);
     
     if (!path) {
@@ -4601,17 +4596,15 @@ Module *loadModule(const char *modulename, Parser *parserPtr)
     }
 
     parser.path			= path;
-
     /*
      * Look into the file to determine whether it contains
      * SMIv1/SMIv2 or SMIng definitions.
      */
-
+    
     file = fopen(path, "r");
-    if (! file) {
+    if (! file) {        
         smiPrintError(parserPtr, ERR_OPENING_INPUTFILE, path, strerror(errno));
         smiFree(path);
-        fclose(file);        
         return NULL;
     }
 

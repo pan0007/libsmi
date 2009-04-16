@@ -23,5 +23,9 @@
 
 time_t checkDate(Parser *parserPtr, char *date);
 
+void validateInclude(_YangNode *module, _YangNode *extModule);
 
+void semanticAnalysis(_YangNode *module);
+
+int isWSP(char ch);
 #endif /* _YANG_CHECK_H */

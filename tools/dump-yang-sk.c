@@ -26,62 +26,29 @@ static int sflag = 0;		/* generate smi: extensions */
 static int nflag = 0;		/* generate notifications */
 static int INDENT = 2;		/* indent factor */
 
-static void fprintNestedElements(FILE *f, int indent, YangNode* nodePtr) {
-    if (nodePtr->description) {
-        fprintSegment(f, indent, "description", 0);
-        fprint(f, " \"%s\";\n", nodePtr->description);        
-    }
-    
-    if (nodePtr->reference) {
-        fprintSegment(f, indent, "reference", 0);
-        fprint(f, " \"%s\";\n", nodePtr->reference);
-    }
-    
-    if (nodePtr->status != YANG_STATUS_DEFAULT_CURRENT) {
-        fprintSegment(f, indent, "status ", 0);
-        char *status = NULL;
-        if (nodePtr->status == YANG_STATUS_CURRENT) {
-            status = "current";
-        } else if (nodePtr->status == YANG_STATUS_DEPRECATED) {
-            status = "deprecated";
-        } else if (nodePtr->status == YANG_STATUS_OBSOLETE) {
-            status = "obsolete";
-        }            
-        fprint(f, "%s;\n", status);
-    }    
-
-    if (nodePtr->config != YANG_CONFIG_DEFAULT_FALSE && nodePtr->config != YANG_CONFIG_DEFAULT_TRUE) {
-        fprintSegment(f, indent, "config ", 0);
-        char *config = NULL;
-        if (nodePtr->config == YANG_CONFIG_TRUE) {
-            config = "true";
-        } else if (nodePtr->config == YANG_CONFIG_FALSE) {
-            config = "false";
-        }            
-        fprint(f, "%s;\n", config);
-    }
-}
-
-int containsNestedElements(YangNode* nodePtr) {
-    return nodePtr->description != NULL ||
-            nodePtr->reference != NULL ||
-            nodePtr->status != YANG_STATUS_DEFAULT_CURRENT ||
-            (nodePtr->config != YANG_CONFIG_DEFAULT_FALSE && nodePtr->config != YANG_CONFIG_DEFAULT_TRUE);
-}
-
 static void fprintYangNode(FILE *f, int indent, YangNode* nodePtr)
 {
-	fprintSegment(f, indent, yandDeclKeyword[nodePtr->nodeKind], 0);
-    fprint(f, " \"%s\"", nodePtr->value);
+    switch (nodePtr->nodeKind) {
+        case YANG_DECL_UNKNOWN_STATEMENT:
+            fprintSegment(f, indent, nodePtr->value, 0);
+            if (nodePtr->extra) {
+                fprint(f, " \"%s\"", nodePtr->extra);
+            }
+            break;
+        default: 
+            fprintSegment(f, indent, yandDeclKeyword[nodePtr->nodeKind], 0);
+            if (nodePtr->value) {
+                fprint(f, " \"%s\"", nodePtr->value);
+            }
+    }
     
     YangNode *childPtr = yangGetFirstChildNode(nodePtr);
-    if (childPtr || containsNestedElements(nodePtr)) {
+    if (childPtr) {
         fprint(f, " {\n");
-        fprintNestedElements(f, indent + INDENT, nodePtr);
         for (; childPtr; childPtr = yangGetNextSibling(childPtr)) {
             fprintYangNode(f, indent + INDENT, childPtr);
         }
-        fprintSegment(f, indent, "}\n", 0);        
+        fprintSegment(f, indent, "}\n", 0);
     } else {
         fprint(f, ";\n");
     }

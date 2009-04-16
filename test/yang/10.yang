@@ -6,5 +6,5 @@
 
 module "test10"{
 	yang-version '1' {}
-	namespace "urn:smilib:params:test10" { test { aaaa { bbbbb;} } }
+	namespace "urn:smilib:params:test10"; 
 }

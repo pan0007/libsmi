@@ -35,7 +35,7 @@ char* getModulePath(const char *modulename) {
     int         i;
     
     static const char *ext[] = {
-        "", ".my", ".smiv1", ".smiv2", ".sming", ".mib", ".txt", NULL
+        "", ".my", ".smiv1", ".smiv2", ".sming", ".mib", ".txt", ".yang", NULL
     };
     
     if ((!modulename) || !strlen(modulename)) {
@@ -128,7 +128,7 @@ SmiLanguage getLanguage(FILE *file) {
         if (c == '-' || isupper(c)) {
             ret = SMI_LANGUAGE_SMIV2;
             break;
-        } else if (c == '/' || c == 'm') {
+        } else if (c == '/' || c == 'm' || c == 's')  {
             i = c;
             while(c = fgetc(file)) { 	   //check for statement termination
                 if(i == '}' && c == ';') { //"};" means sming "}" means yang

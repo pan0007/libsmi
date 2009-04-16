@@ -29,10 +29,20 @@
 #include <dmalloc.h>
 #endif
 
+#include "yang-data.h"
 #include "yang-check.h"
 
 
 #define SMI_EPOCH	631152000	/* 01 Jan 1990 00:00:00 */ 
+
+/*
+ * Current parser defined in parser-yang. Workaround - can't include data.h
+ */
+extern Parser *currentParser;
+
+int isWSP(char ch) {
+    return  (ch == ' ' || ch == '\t');
+}
 
 time_t checkDate(Parser *parserPtr, char *date)
 {
@@ -46,20 +56,20 @@ time_t checkDate(Parser *parserPtr, char *date)
 
     len = strlen(date);
     if (len == 10 || len == 16) {
-	for (i = 0; i < len; i++) {
-	    if (((i < 4 || i == 5 || i == 6 || i == 8 || i == 9 || i == 11
-		  || i == 12 || i == 14 || i == 15) && ! isdigit((int)date[i]))
-		|| ((i == 4 || i == 7) && date[i] != '-')
-		|| (i == 10 && date[i] != ' ')
-		|| (i == 13 && date[i] != ':')) {
-		smiPrintError(parserPtr, ERR_DATE_CHARACTER, date);
-		anytime = (time_t) -1;
-		break;
-	    }
-	}
+        for (i = 0; i < len; i++) {
+            if (((i < 4 || i == 5 || i == 6 || i == 8 || i == 9 || i == 11
+              || i == 12 || i == 14 || i == 15) && ! isdigit((int)date[i]))
+            || ((i == 4 || i == 7) && date[i] != '-')
+            || (i == 10 && date[i] != ' ')
+            || (i == 13 && date[i] != ':')) {
+            smiPrintError(parserPtr, ERR_DATE_CHARACTER, date);
+            anytime = (time_t) -1;
+            break;
+            }
+        }
     } else {
-	smiPrintError(parserPtr, ERR_DATE_LENGTH, date);
-	anytime = (time_t) -1;
+        smiPrintError(parserPtr, ERR_DATE_LENGTH, date);
+        anytime = (time_t) -1;
     }
     
     if (anytime == 0) {
@@ -101,13 +111,29 @@ time_t checkDate(Parser *parserPtr, char *date)
 	    smiPrintError(parserPtr, ERR_DATE_VALUE, date);
 	} else {
 	    if (anytime < SMI_EPOCH) {
-		smiPrintError(parserPtr, ERR_DATE_IN_PAST, date);
+            smiPrintError(parserPtr, ERR_DATE_IN_PAST, date);
 	    }
 	    if (anytime > time(NULL)) {
-		smiPrintError(parserPtr, ERR_DATE_IN_FUTURE, date);
+            smiPrintError(parserPtr, ERR_DATE_IN_FUTURE, date);
 	    }
 	}
-    }
+}
     
     return (anytime == (time_t) -1) ? 0 : anytime;
+}
+
+void validateInclude(_YangNode *module, _YangNode *extModule) {
+    _YangNode* node = findChildNodeByType(extModule, YANG_DECL_BELONGS_TO);
+    if (node) {
+        if (strcmp(node->export.value, module->export.value)) {
+            smiPrintError(currentParser, ERR_SUBMODULE_BELONGS_TO_ANOTHER_MODULE, extModule->export.value, module->export.value);
+        }
+    } else {
+        smiPrintError(currentParser, ERR_SUBMODULE_BELONGS_TO_ANOTHER_MODULE, extModule->export.value, module->export.value);
+    }
+}
+
+
+void semanticAnalysis(_YangNode *module) {
+
 }

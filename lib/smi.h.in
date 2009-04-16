@@ -24,6 +24,7 @@
 #endif
 #include <time.h>
 
+#include "yang.h"
 
 #ifdef __cplusplus
 extern "C" {
