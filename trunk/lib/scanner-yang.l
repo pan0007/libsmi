@@ -278,12 +278,18 @@ int getNumberOfCR() {
 ALPHA           [A-Za-z]
 CR              \015 
 CRLF            {CR}{LF}
+
 DIGIT           [0-9]
-HTAB		"\t"
+NONZERODIGIT    [1-9]
+POSDECIMAL      {NONZERODIGIT}{DIGIT}*
+NONNEGDECIMAL   (0|{POSDECIMAL})
+DECIMAL         ('-'{NONNEGDECIMAL}|{NONNEGDECIMAL})
+
+HTAB            "\t"
 LF              \012
-SP		" "
-VCHAR		([\041-\377])
-WSP		({SP}|{HTAB})
+SP              " "
+VCHAR           ([\041-\377])
+WSP             ({SP}|{HTAB})
 
 /*
  * Lex pattern definitions.
@@ -297,6 +303,15 @@ unquotedString  ([^ \n\t;{}/*]|(\*[^/])|(\/[^*/]))+
 delim		([^a-zA-Z0-9\200-\377])
 UTFCHAR 	([_a-zA-Z0-9\200-\377])
 
+currentKeyword      current
+deprecatedKeyword   deprecated
+obsoleteKeyword     obsolete
+falseKeyword        false
+trueKeyword         true
+notSupported        not-supported
+addKeyword          add
+deleteKeyword       delete
+replaceKeyword      replace
 
 /*
  * Lex state definitions.
@@ -663,119 +678,49 @@ UTFCHAR 	([_a-zA-Z0-9\200-\377])
   * Lex rules for other keywords
   */
 
-<INITIAL>current/{delim} {
+<INITIAL>({currentKeyword}|\"{currentKeyword}\"|\'{currentKeyword}\')/{delim} {
 	yylval.id = yytext;
 	return currentKeyword;
 }
 
-<INITIAL>deprecated/{delim} {
+<INITIAL>({deprecatedKeyword}|\"{deprecatedKeyword}\"|\'{deprecatedKeyword}\')/{delim} {
 	yylval.id = yytext;
 	return deprecatedKeyword;
 }
 
-<INITIAL>false/{delim} {
+<INITIAL>({falseKeyword}|\"{falseKeyword}\"|\'{falseKeyword}\')/{delim} {
 	yylval.id = yytext;
 	return falseKeyword;
 }
 
-<INITIAL>obsolete/{delim} {
+<INITIAL>({obsoleteKeyword}|\"{obsoleteKeyword}\"|\'{obsoleteKeyword}\')/{delim} {
 	yylval.id = yytext;
 	return obsoleteKeyword;
 }
 
-<INITIAL>true/{delim} {
+<INITIAL>({trueKeyword}|\"{trueKeyword}\"|\'{trueKeyword}\')/{delim} {
 	yylval.id = yytext;
 	return trueKeyword;
 }
 
-
- /*
-  *  Lex rules for built-in types
-  */
-
-<INITIAL>binary/{delim} {
+<INITIAL>({notSupported}|\"{notSupported}\"|\'{notSupported}\')/{delim} {
 	yylval.id = yytext;
-	return binaryKeyword;
+	return notSupportedKeyword;
 }
 
-<INITIAL>bits/{delim} {
+<INITIAL>({addKeyword}|\"{addKeyword}\"|\'{addKeyword}\')/{delim} {
 	yylval.id = yytext;
-	return bitsKeyword;
+	return addKeyword;
 }
 
-<INITIAL>boolean/{delim} {
+<INITIAL>({deleteKeyword}|\"{deleteKeyword}\"|\'{deleteKeyword}\')/{delim} {
 	yylval.id = yytext;
-	return booleanKeyword;
+	return deleteKeyword;
 }
 
-<INITIAL>empty/{delim} {
+<INITIAL>({replaceKeyword}|\"{replaceKeyword}\"|\'{replaceKeyword}\')/{delim} {
 	yylval.id = yytext;
-	return emptyKeyword;
-}
-
-<INITIAL>enumeration/{delim} {
-	yylval.id = yytext;
-	return enumerationKeyword;
-}
-
-<INITIAL>float32/{delim} {
-	yylval.id = yytext;
-	return float32Keyword;
-}
-
-<INITIAL>float64/{delim} {
-	yylval.id = yytext;
-	return float64Keyword;
-}
-
-<INITIAL>int8/{delim} {
-	yylval.id = yytext;
-	return int8Keyword;
-}
-
-<INITIAL>int16/{delim} {
-	yylval.id = yytext;
-	return int16Keyword;
-}
-
-<INITIAL>int32/{delim} {
-	yylval.id = yytext;
-	return int32Keyword;
-}
-
-<INITIAL>int64/{delim} {
-	yylval.id = yytext;
-	return int64Keyword;
-}
-
-<INITIAL>leafref/{delim} {
-	yylval.id = yytext;
-	return leafrefKeyword;
-}
-
-<INITIAL>string/{delim} {
-	yylval.id = yytext;
-	return stringKeyword;
-}
-
-<INITIAL>uint8/{delim} {
-	yylval.id = yytext;
-	return uint8Keyword;
-}
-
-<INITIAL>uint16/{delim} {
-	yylval.id = yytext;
-	return uint16Keyword;
-}
-
-<INITIAL>uint32/{delim} {
-	yylval.id = yytext;
-	return uint32Keyword;
-}
-
-<INITIAL>uint64/{delim} {
-	yylval.id = yytext;
-	return uint64Keyword;
+	return replaceKeyword;
 }
 
  /*
@@ -801,7 +746,7 @@ UTFCHAR 	([_a-zA-Z0-9\200-\377])
 <INITIAL>{identifier}:{identifier}/{delim} {
     yylval.text = smiStrdup(yytext);
     _debug("uIdentifierRefArgStr");
-    return identifierRefArgStr;
+    return identifierRefArg;
 }
 
 <INITIAL>(\"{identifier}:{identifier}\"|\'{identifier}:{identifier}\')/{delim} {
@@ -897,7 +842,7 @@ UTFCHAR 	([_a-zA-Z0-9\200-\377])
 }
 
 <ConcatString>\'([^\']|(\\\'))*\' {
-    	cleanSQString();
+    cleanSQString();
 	thisParser.line += lineAdjust;
 	char *tmp = (char*)smiMalloc(strlen(concatTmp) + strlen(yytext) + 2);
 	strcpy(tmp, concatTmp);

@@ -5,11 +5,9 @@
 //
 
 module "test13"{
-        unknownstatement  dkjhf {unknownstatement  dkjhfl; }
+        
 	yang-version '1' {}
-	namespace "urn:smilib:params:test9" { ext1 dkjhf; ext1 dkjhf;  } 
-	unknownstatement;
-	unknownstatement  dkjhf {}
+	namespace "urn:smilib:params:test9" {  } 
  	prefix test13; 
 
 }

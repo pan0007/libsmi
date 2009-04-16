@@ -272,7 +272,7 @@ void smiExit()
 	return;
 
     smiFreeData();
-    
+    yangFreeData();    
     // TODO: free YANG structures
 
     smiFree(smiHandle->path);
@@ -286,8 +286,6 @@ void smiExit()
     smiHandle = NULL;
     return;
 }
-
-
 
 char *smiGetPath()
 {
@@ -426,6 +424,7 @@ char *smiLoadModule(const char *module)
     } else {
         Module *modulePtr;
         if (smiIsPath(module)) {
+            
             modulePtr = loadModule(module, NULL);
 
             if (modulePtr) {
@@ -2661,44 +2660,4 @@ int smiGetMinMaxRange(SmiType *smiType, SmiValue *min, SmiValue *max)
     }
 
     return 0;
-}
-
-
-/*
- * YANG API
- */
-
-/*
- * Determines whether a module with a certain name is a YANG module
- */
-int yangIsModule(const char* modulename) {
-    Module	      *modulePtr;
-    modulePtr = findModuleByName(modulename);
-    
-    if (modulePtr) return 0;
-
-    return 1;    
-}
-
-YangNode* yangGetModule(char *modulename) {
-    return &(findYangModuleByName(modulename)->export);
-}
-
-YangNode *yangGetFirstChildNode(YangNode *yangNodePtr) {
-    _YangNode *nodePtr = (_YangNode *)yangNodePtr;    
-    return &(nodePtr->firstChildPtr->export);
-}
-
-YangNode *yangGetNextSibling(YangNode *yangNodePtr) {
-    _YangNode *nodePtr = (_YangNode *)yangNodePtr;
-    return &(nodePtr->nextSiblingPtr->export);
-}
-
-YangNode *yangGetFirstModule(void) {
-    return &(smiHandle->firstYangModulePtr->export);
-}
-
-YangNode *yangGetNextModule(YangNode *yangModulePtr) {
-    _YangNode *nodePtr = (_YangNode *)yangModulePtr;
-    return &(nodePtr->export);    
 }

@@ -469,7 +469,8 @@ Internet-Draft                    YANG                      January 2009
 
 
 
-
+Scoping also allows types to be defined without concern for naming
+   conflicts between types in different submodules.
 
 
 

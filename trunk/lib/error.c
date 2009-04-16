@@ -721,7 +721,21 @@ static Error errors[] = {
     { 2, ERR_REDEFINED_ELEMENT, "element-redefined", 
       "%s has been already defined", NULL},      
     { 2, ERR_INVALID_CONFIG_VALUE, "invalid-config-value", 
-      "wrong config value", NULL},      
+      "wrong config value", NULL},
+    { 2, ERR_CYCLIC_IMPORTS, "cyclic-imports-value", 
+      "circular dependency between '%s' and '%s' modules", NULL},
+    { 2, ERR_SUBMODULE_BELONGS_TO_ANOTHER_MODULE, "invalid-belongs-to", 
+      "submodule '%s' does not belong to '%s' module", NULL},
+    { 2, ERR_REQUIRED_ELEMENT, "required-element", 
+      "element '%s' is mandatory", NULL},
+    { 2, ERR_WRONG_CARDINALITY, "wrong-cardinality", 
+      "cardinality of the element '%s' is wrong (must be %s)", NULL},
+    { 2, ERR_DUPLICATED_CASE_IDENTIFIER, "duplicated-case-identifier", 
+      "the case identifier '%s' is duplicated within the choice statement", NULL},
+    { 2, ERR_WRONG_ENUM, "duplicated-case-identifier", 
+      "The 'enum' statement takes as an argument a string which MUST NOT be empty and MUST NOT have any leading or trailing  whitespace characters.", NULL},
+    { 2, ERR_DUPLICATED_ENUM_NAME, "duplicated-case-identifier", 
+      "the enum name '%s' is duplicated within the enumeration", NULL},      
     { 0, 0, NULL, NULL, NULL }
 };
 
@@ -937,7 +951,7 @@ smiErrorHandler(char *path, int line, int severity, char *msg, char *tag)
      * A severe error, no way to continue :-(
      */
     if (severity <= 0) {
-	exit(1);
+        exit(1);
     }
 }
 
@@ -968,47 +982,48 @@ printError(Parser *parser, int id, int line, va_list ap)
 {
     char *buffer;
     int i;
-    
     if (! smiHandle->errorHandler) {
-	return;
+        return;
     }
 
     /*
      * Search for the tag instead of just using the id as an index so
      * that we do not run into trouble if the id is bogus.
      */
-
     for (i = 0; errors[i].fmt; i++) {
-	if (errors[i].id == id) break;
+        if (errors[i].id == id) break;
     }
+    
     if (! errors[i].fmt) {
-	i = 0;		/* assumes that 0 is the internal error */
+        i = 0;		/* assumes that 0 is the internal error */
     }
 
     if (parser) {
+        
         if (parser->modulePtr) {
             if ((parser->modulePtr->export.conformance > errors[i].level) ||
             (parser->modulePtr->export.conformance == 0)) {
-            parser->modulePtr->export.conformance = errors[i].level;
+                parser->modulePtr->export.conformance = errors[i].level;
             }
-        }
+        } 
+
 
         if ((errors[i].level <= smiHandle->errorLevel) &&
             (parser->flags & SMI_FLAG_ERRORS) &&
-            ((smiDepth == 1) || (parser->flags & SMI_FLAG_RECURSIVE))) {
-            smiVasprintf(&buffer, errors[i].fmt, ap);
-            (smiHandle->errorHandler) (parser->path, line,
-                           errors[i].level, buffer, errors[i].tag);
+            ((smiDepth != 0) || (parser->flags & SMI_FLAG_RECURSIVE))) {
+
+                        smiVasprintf(&buffer, errors[i].fmt, ap);
+                        (smiHandle->errorHandler) (parser->path, line,
+                        errors[i].level, buffer, errors[i].tag);
         }
-        } else {
-        if (errors[i].level <= smiHandle->errorLevel) {
-            smiVasprintf(&buffer, errors[i].fmt, ap);
-            (smiHandle->errorHandler) (NULL, 0, errors[i].level,
-                           buffer, errors[i].tag);
-        }
+    } else {
+            if (errors[i].level <= smiHandle->errorLevel) {
+                smiVasprintf(&buffer, errors[i].fmt, ap);
+                (smiHandle->errorHandler) (NULL, 0, errors[i].level,
+                               buffer, errors[i].tag);
+            }
     }
 }
-
 
 
 /*

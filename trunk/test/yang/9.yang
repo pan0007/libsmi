@@ -6,6 +6,6 @@
 
 module "test9"{
 	yang-version '1' {}
-	namespace "urn:smilib:params:test9" { test { aaaa { bbbbb;} } }
+	namespace "urn:smilib:params:test9" {  }
  	prefix yang-test._8; 
 }

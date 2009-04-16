@@ -104,13 +104,13 @@ void *smiRealloc(void *ptr, size_t size)
 char *smiStrdup(const char *s1)
 {
     if (s1) {
-	char *m = strdup(s1);
-	if (! m) {
-	    smiPrintError(NULL, ERR_OUT_OF_MEMORY);
-	}
-	return m;
+        char *m = strdup(s1);
+        if (! m) {
+            smiPrintError(NULL, ERR_OUT_OF_MEMORY);
+        }
+        return m;
     } else {
-	return NULL;
+        return NULL;
     }
 }
 

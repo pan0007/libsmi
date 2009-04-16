@@ -67,8 +67,82 @@ const char* yandDeclKeyword[] = {   "unknown",
                                     "error-app-tag",
                                     "mandatory",
                                     "notification",
-                                    "extension"
+                                    "extension",
+                                    "belongs-to",
+                                    "yin-element",
+                                    "unknown-statement",
+                                    "description",
+                                    "reference",
+                                    "status",
+                                    "config",
+                                    "enum",
+                                    "value",
+                                    "require-instance",
+                                    "base",
+                                    "bit",
+                                    "position",
+                                    "units",
+                                    "default",
+                                    "feature",
+                                    "if-feature",
+                                    "identity",
+                                    "presence",
+                                    "when",
+                                    "min-elements",
+                                    "max-elements",
+                                    "ordered-by",
+                                    "key",
+                                    "unique",
+                                    "refine",
+                                    "deviation",
+                                    "deviate"
                                };
+
+const char* statusKeywords[] = {  "default",
+                                  "current",
+                                  "deprecated",
+                                  "",
+                                  "",
+                                  "obsolete"
+                                };
+/*
+ * YANG API
+ */
+
+/*
+ * Determines whether a module with a certain name is a YANG module
+ */
+int yangIsModule(const char* modulename) {
+    Module	      *modulePtr;
+    modulePtr = findModuleByName(modulename);
+    
+    if (modulePtr) return 0;
+
+    return 1;    
+}
+
+YangNode* yangGetModule(char *modulename) {
+    return &(findYangModuleByName(modulename)->export);
+}
+
+YangNode *yangGetFirstChildNode(YangNode *yangNodePtr) {
+    _YangNode *nodePtr = (_YangNode *)yangNodePtr;    
+    return &(nodePtr->firstChildPtr->export);
+}
+
+YangNode *yangGetNextSibling(YangNode *yangNodePtr) {
+    _YangNode *nodePtr = (_YangNode *)yangNodePtr;
+    return &(nodePtr->nextSiblingPtr->export);
+}
+
+YangNode *yangGetFirstModule(void) {
+    return &(smiHandle->firstYangModulePtr->export);
+}
+
+YangNode *yangGetNextModule(YangNode *yangModulePtr) {
+    _YangNode *nodePtr = (_YangNode *)yangModulePtr;
+    return &(nodePtr->export);    
+}
 
 int yangIsTrueConf(YangConfig conf) {
     return conf == YANG_CONFIG_DEFAULT_TRUE || conf == YANG_CONFIG_TRUE;

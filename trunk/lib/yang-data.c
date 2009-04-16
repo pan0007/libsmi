@@ -13,6 +13,7 @@
  */
 
 #include <config.h>
+#include <string.h>
 
 #include "yang.h"
 
@@ -20,6 +21,7 @@
 #include <errno.h>
 #include <ctype.h>
 #include <sys/types.h>
+#include <string.h>
 #if !defined(_MSC_VER) && !defined(__MINGW32__)
 #include <sys/wait.h>
 #endif
@@ -114,6 +116,26 @@ void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind)
     }
 }
 
+
+void presenceNodeKind(_YangNode *nodePtr, YangDecl nodeKind) 
+{
+    if (!findChildNodeByType(nodePtr, nodeKind)) {
+        smiPrintError(currentParser, ERR_REQUIRED_ELEMENT, yandDeclKeyword[nodeKind]);
+    }
+}
+
+int getCardinality(_YangNode *nodePtr, YangDecl nodeKind) 
+{
+    _YangNode *childPtr = NULL;
+    int ret = 0;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        if (childPtr->export.nodeKind == nodeKind) {
+            ret++;
+        }
+    }
+    return ret;
+}
+
 /*
  *----------------------------------------------------------------------
  *
@@ -135,7 +157,7 @@ void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind)
 _YangNode *findYangModuleByName(const char *modulename)
 {
     _YangNode	*modulePtr;
-
+    
     for (modulePtr = smiHandle->firstYangModulePtr; modulePtr; modulePtr = modulePtr->nextSiblingPtr) {
         if ((modulePtr->export.value) && !strcmp(modulePtr->export.value, modulename)) {
             return (modulePtr);
@@ -170,6 +192,33 @@ _YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind) {
     return NULL;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * findChildNodeByType --
+ *
+ *      Lookup a child node by a given type.
+ *
+ * Results:
+ *      A pointer to the _YangNode structure or
+ *      NULL if it is not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+_YangNode* findChildNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value) {
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        if (childPtr->export.nodeKind == nodeKind && !strcmp(childPtr->export.value, value)) {
+            return childPtr;
+        }
+    }
+    return NULL;
+}
+
+
  /*----------------------------------------------------------------------
  *
  * 
@@ -190,19 +239,20 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr)
     _YangModuleInfo *infoPtr = smiMalloc(sizeof(_YangModuleInfo));
     modulePtr->info = infoPtr;
     
-    infoPtr->namespace  = NULL;
+    infoPtr->namespace     = NULL;
     infoPtr->prefix        = NULL;
     infoPtr->version       = NULL;
     infoPtr->organization  = NULL;
     infoPtr->contact       = NULL;
+    infoPtr->parsingState  = YANG_PARSING_IN_PROGRESS;
 
-    // create a Module wrapper to maintain interface compatibility
-    Module *module = addModule(modulePtr->export.value, smiStrdup(currentParser->path), 0, currentParser);
+    // create a corresponding Module wrapper to maintain interface compatibility
+    Module *module = addModule(smiStrdup(modulePtr->export.value), smiStrdup(currentParser->path), 0, currentParser);
     currentParser->modulePtr = module;
     return (infoPtr);
 }
 
-_YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
+_YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr)
 {
 	_YangNode *node = (_YangNode*) smiMalloc(sizeof(_YangNode));
 	
@@ -210,6 +260,7 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
 	node->export.nodeKind       = nodeKind;
     node->export.description	= NULL;
     node->export.reference		= NULL;
+    node->export.extra  		= NULL;
     node->export.config         = YANG_CONFIG_DEFAULT_TRUE;
     node->export.status         = YANG_STATUS_DEFAULT_CURRENT;
     
@@ -251,40 +302,6 @@ _YangNode *addYangNode(char *value, YangDecl nodeKind, _YangNode *parentPtr)
 /*
  *----------------------------------------------------------------------
  *
- * importModule --
- *
- *      Lookup a YANG Module by a given name.
- *
- * Results:
- *      A pointer to the _YangModule structure or
- *      NULL if it is not found.
- *
- * Side effects:
- *      None.
- *
- *----------------------------------------------------------------------
- */
-_YangNode *importModule(_YangNode *importNode) {
-    return NULL;
-}
-/*    _YangNode *importedModule = findModuleByName($2);			
-			if(!m)
-			{
-				m = loadModule($2, currentParser);
-			}
-			if(m)
-			{		    
-                Import *im = addImport("", currentParser);
-                setImportModulename(im, m->export.name);
-                currentImport = im;
-			} else {
-				smiPrintError(thisParserPtr, ERR_IMPORT_NOT_FOUND, $2);
-			}*/
-      
-
-/*
- *----------------------------------------------------------------------
- *
  * loadYangModule --
  *
  *      Load a YANG module. If modulename is a plain name, the file is
@@ -304,6 +321,31 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
     FILE	    *file;
 
     path = getModulePath(modulename);
+
+    /* module can not be located, the last try */
+    if (!path && parserPtr && parserPtr->path) {
+        /*  searching for a module at the path where the previous module was found
+            it's used by the imported modules */
+        int slashIndex = -1;
+        int i = 0;
+        for (i = strlen(parserPtr->path) - 1; i + 1; i--)
+            if (parserPtr->path[i] == DIR_SEPARATOR) {
+                slashIndex = i;
+                break;
+            }
+        if (slashIndex == -1) {
+            smiAsprintf(&path, "%s%s", modulename, ".yang");
+        } else {
+            char *dir = (char*) smiMalloc(slashIndex + 2);
+            dir[slashIndex + 1] = 0;
+            strncpy(dir, parserPtr->path, slashIndex + 1);
+
+            smiAsprintf(&path, "%s%c%s%s", dir, DIR_SEPARATOR, modulename, ".yang");
+            
+            // TODO: implement path extraction and construction 
+            smiFree(dir);
+        }
+    }
     
     if (!path) {
         smiPrintError(parserPtr, ERR_MODULE_NOT_FOUND, modulename);
@@ -365,6 +407,9 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
 	fclose(parser.file);
 	smiFree(path);
 	smiHandle->parserPtr = parentParserPtr;
+    if (parser.yangModulePtr) {
+        ((_YangModuleInfo*)(parser.yangModulePtr->info))->conformance = parser.modulePtr->export.conformance;
+    }
 	return parser.yangModulePtr;
 #else
 	smiPrintError(parserPtr, ERR_YANG_NOT_SUPPORTED, path);
@@ -373,10 +418,108 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
 	return NULL;
 #endif
 
-    
-    
     smiFree(path);
     fclose(file);
     return NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * importModule --
+ *
+ *      Lookup a YANG Module by a given name.
+ *
+ * Results:
+ *      A pointer to the _YangModule structure or
+ *      NULL if it is not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+_YangNode *externalModule(_YangNode *importNode) {
+    _YangNode *importedModule = findYangModuleByName(importNode->export.value);
+
+    if (importedModule && ((_YangModuleInfo*)importedModule->info)->parsingState == YANG_PARSING_IN_PROGRESS) {
+        smiPrintError(currentParser, ERR_CYCLIC_IMPORTS, importNode->modulePtr->export.value, importedModule->export.value);
+    }
+    
+    if(!importedModule)
+    {
+        Parser* tempParser = currentParser;
+        importedModule = loadYangModule(importNode->export.value, currentParser);
+        currentParser = tempParser;
+    }
+  
+    if(importedModule && !strcmp(importNode->export.value, importedModule->export.value))
+    {		
+        /* there are critical errors in the imported module*/
+        /*if (((_YangModuleInfo*)importedModule->info)->conformance && ((_YangModuleInfo*)importedModule->info)->conformance < 3) {
+            smiPrintError(currentParser, ERR_IMPORT_NOT_FOUND, importNode->export.value);
+        }*/
+        // TODO: process imported module
+        return importedModule;
+    } else {
+        smiPrintError(currentParser, ERR_IMPORT_NOT_FOUND, importNode->export.value);
+    }    
+    return NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * freeYangNode --
+ *
+ *      Free a YANG module tree.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+void freeYangNode(_YangNode *nodePtr) {
+    if (!nodePtr) return;
+    
+    smiFree(nodePtr->export.value);
+    nodePtr->export.value = NULL;
+    smiFree(nodePtr->export.extra);
+    nodePtr->export.extra = NULL;    
+    nodePtr->export.description = NULL;
+    nodePtr->export.reference = NULL;
+    
+    
+    smiFree(nodePtr->info);
+    nodePtr->info = NULL;
+    
+    _YangNode *currentNode= nodePtr->firstChildPtr, *nextNode;
+    while (currentNode) {
+        nextNode = currentNode->nextSiblingPtr;
+        freeYangNode(currentNode);
+        currentNode = nextNode;
+    }
+     
+    smiFree(nodePtr);
+    nodePtr = NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * yangFreeData --
+ *
+ *      Free YANG all data structures.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+void yangFreeData() {
+    _YangNode	*modulePtr;
+    for (modulePtr = smiHandle->firstYangModulePtr; modulePtr; modulePtr = modulePtr->nextSiblingPtr) {
+        freeYangNode(modulePtr);
+    }    
 }
 
