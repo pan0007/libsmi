@@ -29,6 +29,17 @@ typedef struct _YangNode {
     struct _YangNode  	*modulePtr;
 } _YangNode;
 
+typedef struct _YangNodeList {
+    struct _YangNode  	*nodePtr;
+    struct _YangNodeList *next;
+} _YangNodeList;
+
+typedef struct _YangImportList {
+    char                *prefix;
+    struct _YangNode  	*modulePtr;
+    struct _YangImportList *next;
+} _YangImportList;
+
 /* _YangParseState -- reflects the current state of the module processing state      */
 typedef enum _YangParsingState {
     YANG_PARSING_IN_PROGRESS       = 0,  /* should not occur            */
@@ -43,6 +54,8 @@ typedef struct _YangModuleInfo {
     char        *contact;
     _YangParsingState parsingState;
     int         conformance;
+    struct _YangNodeList *submodules;
+    struct _YangImportList *imports;
 } _YangModuleInfo;
 
 _YangNode *findYangModuleByName(const char *modulename);

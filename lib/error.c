@@ -735,7 +735,9 @@ static Error errors[] = {
     { 2, ERR_WRONG_ENUM, "duplicated-case-identifier", 
       "The 'enum' statement takes as an argument a string which MUST NOT be empty and MUST NOT have any leading or trailing  whitespace characters.", NULL},
     { 2, ERR_DUPLICATED_ENUM_NAME, "duplicated-case-identifier", 
-      "the enum name '%s' is duplicated within the enumeration", NULL},      
+      "the enum name '%s' is duplicated within the enumeration", NULL},
+    { 2, ERR_DUPLICATED_PREFIX, "duplicated-prefix", 
+      "the prefix '%s' is duplicated within the module", NULL},
     { 0, 0, NULL, NULL, NULL }
 };
 

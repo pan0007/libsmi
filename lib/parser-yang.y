@@ -713,7 +713,6 @@ moduleHeaderStatement_0n:	moduleHeaderStatement0_n
                 if (!thisModuleInfoPtr->prefix) {
                     smiPrintError(parserPtr, ERR_PREFIX_MISSING, NULL);
                 }
-                $$ = 1;
 			}
 		;
 
@@ -772,14 +771,9 @@ belongsToStatement: belongs_toKeyword identifier
                     }
                     ;
 
-linkageStatement_0n:	{
-				$$ = 1;
-			}
+linkageStatement_0n:
 		|
 			linkageStatement_0n linkageStatement
-			{
-				$$ = 1 + $2;
-			}
 		;
 
 linkageStatement:	includeStatement stmtSep
@@ -982,7 +976,6 @@ revisionDescriptionStatement:
 date: 	dateString
 	{
         checkDate(currentParser, $1);
-		$$ = $1;
 	}
 	;
 
