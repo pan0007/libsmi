@@ -1,0 +1,8 @@
+module composite {
+    namespace "urn:test:composite";
+    prefix c;
+
+    include submodule;    
+
+    c:ext1 "test"; // pyang error
+}

@@ -1,0 +1,13 @@
+submodule submodule {
+
+	belongs-to composite {
+		prefix c; 
+	}
+
+    extension ext1 {
+          argument test;
+    }
+
+	c:ext1 "test arg";
+
+}
