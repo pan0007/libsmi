@@ -1,0 +1,10 @@
+submodule submodule {
+
+	belongs-to composite {
+		prefix c; 
+	}
+
+	typedef type1 {
+		type int8;
+	}
+}

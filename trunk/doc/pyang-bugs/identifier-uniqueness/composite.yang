@@ -1,0 +1,10 @@
+module composite {
+    namespace "urn:test:composite";
+    prefix c;
+
+    include submodule;    
+
+	typedef type1 {
+		type int8;
+	}
+}
