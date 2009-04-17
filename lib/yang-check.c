@@ -169,7 +169,8 @@ int getIdentifierGroup(YangDecl kind) {
                kind == YANG_DECL_CONTAINER ||
                kind == YANG_DECL_CHOICE ||
                kind == YANG_DECL_RPC ||
-               kind == YANG_DECL_NOTIFICATION) {
+               kind == YANG_DECL_NOTIFICATION ||
+               kind == YANG_DECL_ANYXML) {
         return YANG_IDGR_NODE;
     }
     return YANG_IDGR_NONE;
@@ -228,8 +229,7 @@ int validateNodeUniqueness(_YangNode *nodePtr) {
             return 0;
         }                    
         submodules = submodules->next;
-    }
-    
+    }    
     return 1;
 }
 
@@ -239,9 +239,9 @@ int validateNodeUniqueness(_YangNode *nodePtr) {
 void uniqueNames(_YangNode* nodePtr) { 
     /* go over all child nodes*/
     _YangNode* cur = nodePtr->firstChildPtr;
-    while (cur) {            
+    while (cur) {
         YangIdentifierGroup yig = getIdentifierGroup(cur->export.nodeKind);
-        if (yig != YANG_IDGR_NONE) {            
+        if (yig > YANG_IDGR_NONE) {            
             if (!validateNodeUniqueness(cur)) {
                 smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
             }
@@ -250,54 +250,6 @@ void uniqueNames(_YangNode* nodePtr) {
         cur = cur->nextSiblingPtr;
     }
 }
-
-    /* if the current node is choise, then all cases are the same namespace and we have to handle it differently 
-    if (nodePtr->export.nodeKind == YANG_DECL_CHOICE) {
-        _YangNode* cur = nodePtr->firstChildPtr;
-        while (cur) {
-            if (cur->export.nodeKind == YANG_DECL_CASE) {
-                _YangNode* caseChild = cur->firstChildPtr;
-                for (; caseChild; caseChild = caseChild->nextSiblingPtr) {
-                    YangIdentifierGroup yig = getIdentifierGroup(caseChild->export.nodeKind);
-                    if (yig != YANG_IDGR_NONE) {
-                        /* check whether this identifier has been defined before 
-                        if (countChoiceChildNodesByTypeAndValue(nodePtr, caseChild, getIdentifierGroup(caseChild->export.nodeKind), caseChild->export.value)) {
-                            smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, caseChild->line, caseChild->export.value);
-                        }
-                    }
-                    uniqueNames(caseChild);
-                }
-                cur = cur->nextSiblingPtr;
-            } else {
-                YangIdentifierGroup yig = getIdentifierGroup(cur->export.nodeKind);
-                if (yig != YANG_IDGR_NONE) {
-                    /* check whether this identifier has been defined before 
-                    if (countChoiceChildNodesByTypeAndValue(nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
-                        smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
-                    }
-                }
-                uniqueNames(cur);
-                cur = cur->nextSiblingPtr;
-            }
-        }
-    } else {    */
-/* check whether this identifier is contained in one of the submodules
-int isDuplicated = 0;
-if (nodePtr->export.nodeKind == YANG_DECL_MODULE || nodePtr->export.nodeKind == YANG_DECL_SUBMODULE) {
-    _YangNodeList* submodules = ((_YangModuleInfo*)nodePtr->info)->submodules;
-    while (submodules) {
-        if (countChildNodesByTypeAndValue(submodules->nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
-            isDuplicated = 1;
-            smiPrintErrorAtLine(currentParser, ERR_SUBMODULE_DUPLICATED_IDENTIFIER, cur->line, cur->export.value, submodules->nodePtr->export.value);
-            break;
-        }                    
-        submodules = submodules->next;
-    }
-}                
-/* check whether this identifier has been defined before 
-if (!isDuplicated && countChildNodesByTypeAndValue(nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
-    smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
-}*/
 
 /*
  * Verifies that the extension matches the extension definition
