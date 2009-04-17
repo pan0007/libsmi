@@ -44,6 +44,12 @@ submodule unique2
 		     type string;
 		     description "List of domain names to search";
 		}
+
+        typedef str1 {
+            type string;
+        }
+
+       
 	}
  
 }

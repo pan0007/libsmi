@@ -12,9 +12,14 @@ submodule unique3
         type string;
     }
 	
-	leaf how {
+	leaf how1 {
 		type int32;
 	} 
+
+	leaf how1 {
+		type int32;
+	} 
+
 
     choice how {
 		container ethernet3 {
@@ -23,10 +28,15 @@ submodule unique3
 			leaf ethernet3 {
  				type uint16;
 	        }
+			leaf how1 {
+ 				type uint16;
+	        }
             container ethernet4 {
             }
 		}
-        container ethernet4 {
-        }
+		case test {
+		    container ethernet4 {
+		    }
+		}
 	}
 }
