@@ -207,6 +207,9 @@ int countChoiceChildNodesByTypeAndValue(_YangNode *nodePtr, _YangNode *curNode, 
     return ret;
 }
 
+/*
+ * Verifies that all identifiers are unique within all namespaces
+ */
 void uniqueNames(_YangNode* nodePtr) {    
     /* if the current node is choise, then all cases are the same namespace and we have to handle it differently */
     if (nodePtr->export.nodeKind == YANG_DECL_CHOICE) {
@@ -268,7 +271,31 @@ void uniqueNames(_YangNode* nodePtr) {
     }
 }
 
+/*
+ * Verifies that the extension matches the extension definition
+ */
+void resolveExtentions(_YangNode* node) {
+    if (node->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
+        _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
+        _YangNode *extension = resolveReference(node->parentPtr, YANG_DECL_EXTENSION, identifierRef->prefix, identifierRef->identifierName);
+        if (!extension) {
+            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
+        }
+        _YangNode *argument = findChildNodeByType(extension, YANG_DECL_ARGUMENT);
+        if (argument && !node->export.extra) {
+            smiPrintErrorAtLine(currentParser, ERR_EXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
+        } else if (!argument && node->export.extra) {
+            smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
+        }
+    }
+    _YangNode *child = node->firstChildPtr;
+    while (child) {
+        resolveExtentions(child);
+        child = child->nextSiblingPtr;
+    }
+}
 
 void semanticAnalysis(_YangNode *module) {
     uniqueNames(module);
+    resolveExtentions(module);
 }

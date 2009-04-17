@@ -742,6 +742,12 @@ static Error errors[] = {
       "identifier '%s' is already defined within the namespace", NULL},
     { 2, ERR_SUBMODULE_DUPLICATED_IDENTIFIER, "submodule-duplicated-identifier", 
       "identifier '%s' is already defined within submodule '%s'", NULL},
+    { 2, ERR_REFERENCE_NOT_RESOLVED, "reference-not-resolved", 
+      "reference to '%s:%s' can not be resolved", NULL},
+    { 2, ERR_EXPECTED_EXTENSION_ARGUMENT, "expected-argument", 
+      "expected argument for extension '%s' not found", NULL},
+    { 2, ERR_UNEXPECTED_EXTENSION_ARGUMENT, "unexpected-argument", 
+      "unexpected argument for extension '%s'", NULL},      
     { 0, 0, NULL, NULL, NULL }
 };
 

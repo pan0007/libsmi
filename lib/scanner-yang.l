@@ -300,7 +300,7 @@ identifier      ({ALPHA}|"_")({ALPHA}|{DIGIT}|"_"|"-"|".")*
 lineBreak       ({CRLF}|{LF})
 unquotedString  ([^ \n\t;{}/*]|(\*[^/])|(\/[^*/]))+
 
-delim		([^a-zA-Z0-9\200-\377])
+delim		([{; \n\t\015\012/])
 UTFCHAR 	([_a-zA-Z0-9\200-\377])
 
 currentKeyword      current
@@ -812,14 +812,14 @@ replaceKeyword      replace
   * Lex rules for textSegments.
   */
 
-<INITIAL>\"([^\"]|(\\\"))*\" {
+<INITIAL>\"([^\"]|(\\\"))*\"/{delim} {
    cleanSQString();
    thisParser.line += lineAdjust;
    concatTmp = smiStrdup(yytext);
    BEGIN(FindPlus);
 }
 
-<INITIAL>\'([^\'])*\' {
+<INITIAL>\'([^\'])*\'/{delim} {
     cleanSQString();
     thisParser.line += lineAdjust;
     concatTmp = smiStrdup(yytext);
@@ -880,7 +880,7 @@ replaceKeyword      replace
 <ConcatString>{WSP} {
 }
 
-<INITIAL>{unquotedString} {
+<INITIAL>{unquotedString}/{delim} {
         yylval.text = smiStrdup(yytext);
         _debug("uString");
         return uqString;
