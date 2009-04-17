@@ -254,79 +254,6 @@ void checkUniqueAndKey()
 	return;
 }*/
 
-/*
-void setType(SmiBasetype basetype, Type *parent, char *parentName)
-{
-	switch( topDecl() )
-	{
-		case YANG_DECL_TYPEDEF:
-			if(basetype == SMI_BASETYPE_UNKNOWN) //type derived from non-base type
-			{
-				if(parent) //known parent - put reference
-				{
-					//for typedefs type name is the same as node name
-					char *typeName = smiStrdup(currentNode->export.name);
-					currentType = createType(typeName); //add type with this name
-					setTypeDecl(currentType, YANG_DECL_TYPEDEF);
-					setTypeParent(currentType, parent);
-					setTypeBasetype(currentType, parent->export.basetype);
-				}
-				else //forward reference - put empty type with parent's name
-				{
-					char *typeName = smiStrdup(parentName);
-					currentType = createType(typeName);
-                                        setTypeDecl(currentType, YANG_DECL_TYPEDEF);
-				}
-			}
-			else //New type derived from base type
-			{
-				
-				//for typedefs type name is the same as node name
-			        currentType = createType(currentNode->export.name);
-
-				setTypeBasetype(currentType, basetype);
-				setTypeParent(currentType, parent);
-			}
-		        	
-			break;
-		case YANG_DECL_LEAF_LIST:
-		case YANG_DECL_LEAF:
-			if(basetype == SMI_BASETYPE_UNKNOWN) //type derived from non-base type
-			{
-				if(parent) //known parent - put reference
-				{
-					char *typeName = smiStrdup(parentName);
-					currentType = createType(typeName); //add type with this name
-					setTypeDecl(currentType, YANG_DECL_TYPEDEF);
-					setTypeParent(currentType,parent);
-					setTypeBasetype(currentType,parent->export.basetype);
-				}
-				else //forward reference - put empty type with parent's name
-				{
-					char *typeName = smiStrdup(parentName);
-					currentType = createType(typeName); //add type with this name
-				//IMPORTANT: After parsing is finished the dummy types are changed with
-				// references to their parent. Dummies are distinguished by the fact that
-				// they have no parent (parentPtr = NULL)
-				}
-			}
-			else //New type derived from base type
-			{
-		
-				currentType = createType(parentName);		
-
-				setTypeBasetype(currentType, basetype);
-				setTypeParent(currentType, parent);
-			}
-				
-			break;
-		default:
-			//TODO print error
-			printf("DEBUGG: OOPS wrong err decl %d, at line %d\n",topDecl(),currentParser->line);
-			break;
-	}
-}*/
-
 %}
 
 /*
@@ -512,6 +439,7 @@ void setType(SmiBasetype basetype, Type *parent, char *parentName)
 %type <text>string
 %type <text>prefix
 %type <text>identifierRef
+%type <text>identifierStr
 %type <rc>enumSpec
 %type <rc>enum
 %type <rc>enumSubstatementSpec
@@ -627,7 +555,7 @@ yangFile:		moduleStatement
                 submoduleStatement
         ;
 
-moduleStatement:	moduleKeyword identifier
+moduleStatement:	moduleKeyword identifierStr
 			{
                 thisParserPtr->yangModulePtr = findYangModuleByName($2);
 			    if (!thisParserPtr->yangModulePtr) {
@@ -666,7 +594,7 @@ moduleStatement:	moduleKeyword identifier
 			}
 	;
 
-submoduleStatement:	submoduleKeyword identifier
+submoduleStatement:	submoduleKeyword identifierStr
 			{
                 thisParserPtr->yangModulePtr = findYangModuleByName($2);
 			    if (!thisParserPtr->yangModulePtr) {
@@ -758,7 +686,7 @@ submoduleHeaderStatement:	belongsToStatement stmtSep
                 ;
 
 
-belongsToStatement: belongs_toKeyword identifier 
+belongsToStatement: belongs_toKeyword identifierStr 
                     {
                         node = addYangNode($2, YANG_DECL_BELONGS_TO, topNode());
                         pushNode(node);
@@ -979,7 +907,7 @@ date: 	dateString
 	}
 	;
 
-importStatement: importKeyword identifier
+importStatement: importKeyword identifierStr
 		{
             node = addYangNode($2, YANG_DECL_IMPORT, topNode());
 			pushNode(node);
@@ -1000,7 +928,7 @@ optionalRevision:
                       revisionStatement stmtSep 
                     ;
 
-includeStatement: includeKeyword identifier
+includeStatement: includeKeyword identifierStr
 		{
             node = addYangNode($2, YANG_DECL_INCLUDE, topNode());
 			pushNode(node);
@@ -1021,7 +949,7 @@ includeStatementBody:         ';'
                     '}'
                 ;
 
-featureStatement: featureKeyword identifier
+featureStatement: featureKeyword identifierStr
                 {
                     node = addYangNode($2, YANG_DECL_FEATURE, topNode());
                     pushNode(node);
@@ -1059,7 +987,7 @@ ifFeatureStatement: ifFeatureKeyword identifierRef stmtEnd
                     }
                     ;
 
-identityStatement: identityKeyword identifier 
+identityStatement: identityKeyword identifierStr 
                 {
                     node = addYangNode($2, YANG_DECL_IDENTITY, topNode());
                     pushNode(node);
@@ -1090,7 +1018,7 @@ identitySubstatement:   baseStatement
                     |   
                         referenceStatement;
 
-typedefStatement:   typedefKeyword identifier
+typedefStatement:   typedefKeyword identifierStr
                 {
                     node = addYangNode($2, YANG_DECL_TYPEDEF, topNode());
                     pushNode(node);
@@ -1425,7 +1353,7 @@ unknownStatement:   identifierRefArg
                     }
         ;
 
-containerStatement: containerKeyword identifier
+containerStatement: containerKeyword identifierStr
 			{
                 node = addYangNode($2, YANG_DECL_CONTAINER, topNode());				
                 pushNode(node);
@@ -1526,7 +1454,7 @@ mandatoryStatement: mandatoryKeyword trueKeyword stmtEnd
 			}
 		;
 			
-leafStatement: leafKeyword identifier
+leafStatement: leafKeyword identifierStr
 			{
 				node = addYangNode($2, YANG_DECL_LEAF, topNode());
                 pushNode(node);
@@ -1565,7 +1493,7 @@ leafSubstatement:	ifFeatureStatement
                     whenStatement
                 ;
 
-leaf_listStatement: leaf_listKeyword identifier
+leaf_listStatement: leaf_listKeyword identifierStr
 			{
 				node = addYangNode($2, YANG_DECL_LEAF_LIST, topNode());
                 pushNode(node);
@@ -1606,7 +1534,7 @@ leaf_listSubstatement:	mustStatement
                         ordered_byStatement
                     ;
 		
-listStatement: listKeyword identifier
+listStatement: listKeyword identifierStr
 			{
 				node = addYangNode($2, YANG_DECL_LIST, topNode());
                 pushNode(node);
@@ -1727,7 +1655,7 @@ uniqueStatement: uniqueKeyword string stmtEnd
 		}
 	;
 
-choiceStatement: choiceKeyword identifier
+choiceStatement: choiceKeyword identifierStr
 		{
             node = addYangNode($2, YANG_DECL_CHOICE, topNode());
             pushNode(node);
@@ -1764,7 +1692,7 @@ choiceSubstatement:	commonStatement
                     caseStatement
                 ;
 
-caseStatement: 	caseKeyword identifier
+caseStatement: 	caseKeyword identifierStr
 		{
             node = findChildNodeByTypeAndValue(topNode(), YANG_DECL_CASE, $2);
             if (node) {
@@ -1830,7 +1758,7 @@ caseDataDef:    containerStatement
             ;
 
 
-groupingStatement: groupingKeyword identifier
+groupingStatement: groupingKeyword identifierStr
 		{
             node = addYangNode($2, YANG_DECL_GROUPING, topNode());
             pushNode(node);
@@ -1990,7 +1918,7 @@ whenStatement:	whenKeyword string stmtEnd
         }
 		;
 
-rpcStatement: rpcKeyword identifier
+rpcStatement: rpcKeyword identifierStr
 		{
             node = addYangNode($2, YANG_DECL_RPC, topNode());
             pushNode(node);
@@ -2072,7 +2000,7 @@ outputStatement: outputKeyword
 		;
 
 
-notificationStatement: notificationKeyword identifier
+notificationStatement: notificationKeyword identifierStr
                 {
                     node = addYangNode($2, YANG_DECL_NOTIFICATION, topNode());
                     pushNode(node);
@@ -2266,7 +2194,7 @@ deviateReplaceSubstatement: typeStatement
                         ;
 
 
-anyXMLStatement: anyXMLKeyword identifier
+anyXMLStatement: anyXMLKeyword identifierStr
 		{
             node = addYangNode($2, YANG_DECL_ANYXML, topNode());
             pushNode(node);
@@ -2300,7 +2228,7 @@ anyXMLSubstatement:	commonStatement
                     mandatoryStatement
                 ;
 
-extensionStatement: extensionKeyword identifier
+extensionStatement: extensionKeyword identifierStr
 		{
 			node = addYangNode($2, YANG_DECL_EXTENSION, topNode());
             pushNode(node);
@@ -2329,7 +2257,7 @@ extensionSubstatement:	argumentStatement
                         referenceStatement
                 ;
 
-argumentStatement:  argumentKeyword identifier
+argumentStatement:  argumentKeyword identifierStr
                     {
                         uniqueNodeKind(topNode(), YANG_DECL_ARGUMENT);
                         node = addYangNode($2, YANG_DECL_ARGUMENT, topNode());
@@ -2373,15 +2301,27 @@ defaultStatement: defaultKeyword string stmtEnd
                 }
                 ;
 
-prefix:		identifier
+prefix:		identifierStr
         ;
 
 identifierRef:  identifierRefArg
             |
                 identifierRefArgStr 
             |
-                identifier 
+                identifierStr 
             ;
+identifierStr:    identifier
+                | augmentKeyword | belongs_toKeyword | choiceKeyword | configKeyword | contactKeyword | containerKeyword | defaultKeyword | descriptionKeyword
+                | enumKeyword | error_app_tagKeyword | error_messageKeyword | extensionKeyword | groupingKeyword | importKeyword | includeKeyword | keyKeyword
+                | leafKeyword | leaf_listKeyword | lengthKeyword | listKeyword | mandatoryKeyword | max_elementsKeyword | min_elementsKeyword | moduleKeyword
+                | submoduleKeyword | mustKeyword | namespaceKeyword | ordered_byKeyword | organizationKeyword | prefixKeyword | rangeKeyword | referenceKeyword
+                | patternKeyword | revisionKeyword | statusKeyword | typeKeyword | typedefKeyword | uniqueKeyword | unitsKeyword | usesKeyword | valueKeyword
+                | whenKeyword | bitKeyword | pathKeyword | anyXMLKeyword | deprecatedKeyword | currentKeyword | obsoleteKeyword | trueKeyword | falseKeyword
+                | caseKeyword | inputKeyword | outputKeyword | rpcKeyword | notificationKeyword | argumentKeyword | yangversionKeyword | baseKeyword
+                | deviationKeyword | deviateKeyword | featureKeyword | identityKeyword | ifFeatureKeyword | positionKeyword | presenceKeyword | refineKeyword
+                | requireInstanceKeyword | yinElementKeyword | notSupportedKeyword | addKeyword | deleteKeyword | replaceKeyword
+                ;
+
 
 booleanValue:   trueKeyword
                 {
@@ -2403,6 +2343,7 @@ string:		qString
             dateString
     |
             yangVersion
+
 	;
 %%
 
