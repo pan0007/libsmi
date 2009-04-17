@@ -1,0 +1,12 @@
+unique3.yang:19: identifier 'how' is already defined within the namespace
+unique3.yang:23: identifier 'ethernet3' is already defined within the namespace
+unique3.yang:29: identifier 'ethernet4' is already defined within the namespace
+unique2.yang:21: identifier 'my-str' is already defined within submodule 'unique3'
+unique2.yang:43: identifier 'ifType' is already defined within the namespace
+unique1.yang:7: identifier 'type1' is already defined within submodule 'unique2'
+unique1.yang:11: identifier 'type1' is already defined within submodule 'unique2'
+unique1.yang:15: identifier 'type1' is already defined within submodule 'unique2'
+unique1.yang:19: identifier 'host-name' is already defined within submodule 'unique2'
+unique1.yang:24: identifier 'interface' is already defined within submodule 'unique2'
+unique1.yang:31: identifier 'ifType' is already defined within the namespace
+unique1.yang:37: identifier 'my-str2' is already defined within submodule 'unique3'

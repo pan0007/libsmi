@@ -1,0 +1,32 @@
+submodule unique3 
+{
+	belongs-to unique1 {
+		prefix u2;
+	}
+
+    typedef my-str {
+        type string;
+    }
+
+    typedef my-str2 {
+        type string;
+    }
+	
+	leaf how {
+		type int32;
+	} 
+
+    choice how {
+		container ethernet3 {
+		}
+        case interval {
+			leaf ethernet3 {
+ 				type uint16;
+	        }
+            container ethernet4 {
+            }
+		}
+        container ethernet4 {
+        }
+	}
+}
