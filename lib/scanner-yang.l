@@ -328,13 +328,32 @@ replaceKeyword      replace
 <INITIAL>(\/){2}({WSP}|{VCHAR})*/{LF} {
 }
 
+<FindPlus>(\/){2}({WSP}|{VCHAR})*/{LF} {
+}
+
+<ConcatString>(\/){2}({WSP}|{VCHAR})*/{LF} {
+}
+
 <INITIAL>(\/){2}({WSP}|{VCHAR})*/{CRLF} {
+}
+
+<FindPlus>(\/){2}({WSP}|{VCHAR})*/{CRLF} {
+}
+
+<ConcatString>(\/){2}({WSP}|{VCHAR})*/{CRLF} {
 }
 
 <INITIAL>"/*"([^\*]|(\*[^/]))*"*/"  {
         thisParser.line += getNumberOfCR();
 }
 
+<FindPlus>"/*"([^\*]|(\*[^/]))*"*/"  {
+        thisParser.line += getNumberOfCR();
+}
+
+<ConcatString>"/*"([^\*]|(\*[^/]))*"*/"  {
+        thisParser.line += getNumberOfCR();
+}
 
  /*
   * Lex rules for some special tokens.

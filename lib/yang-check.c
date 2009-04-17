@@ -134,7 +134,51 @@ void validateInclude(_YangNode *module, _YangNode *extModule) {
     }
 }
 
+typedef enum YangIdentifierGroup {
+     YANG_IDGR_NONE = 0,
+     YANG_IDGR_EXTENSION,
+     YANG_IDGR_FEATURE,
+     YANG_IDGR_IDENTITY,
+     YANG_IDGR_TYPEDEF,
+     YANG_IDGR_GROUPING,
+     YANG_IDGR_NODE,     
+} YangIdentifierGroup;
+
+
+int requiresIdentifierUniqueness(YangDecl kind) {
+    if (kind == YANG_DECL_EXTENSION) {
+        return YANG_IDGR_EXTENSION;
+    } else if (kind == YANG_DECL_FEATURE) {
+        return YANG_IDGR_FEATURE;
+    } else if (kind == YANG_DECL_IDENTITY) {
+        return YANG_IDGR_IDENTITY;
+    } else if (kind == YANG_DECL_TYPEDEF) {
+        return YANG_IDGR_TYPEDEF;
+    } else if (kind == YANG_DECL_GROUPING) {
+        return YANG_IDGR_GROUPING;
+    } else if (kind == YANG_DECL_LEAF || 
+               kind == YANG_DECL_LEAF_LIST || 
+               kind == YANG_DECL_LIST || 
+               kind == YANG_DECL_CONTAINER ||
+               kind == YANG_DECL_CHOICE ||
+               kind == YANG_DECL_RPC ||
+               kind == YANG_DECL_NOTIFICATION) {
+        return YANG_IDGR_NODE;
+    }
+    return YANG_IDGR_NONE;
+}
+
+void uniqueNames(_YangNode* nodePtr) {
+    if (nodePtr->export.nodeKind == YANG_DECL_MODULE || nodePtr->export.nodeKind == YANG_DECL_SUBMODULE) {
+        
+    } else if (nodePtr->export.nodeKind == YANG_DECL_CHOICE) {
+        
+    } else {
+        
+    }
+}
+
 
 void semanticAnalysis(_YangNode *module) {
-
+    uniqueNames(module);
 }
