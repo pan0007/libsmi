@@ -747,7 +747,9 @@ static Error errors[] = {
     { 2, ERR_EXPECTED_EXTENSION_ARGUMENT, "expected-argument", 
       "expected argument for extension '%s' not found", NULL},
     { 2, ERR_UNEXPECTED_EXTENSION_ARGUMENT, "unexpected-argument", 
-      "unexpected argument for extension '%s'", NULL},      
+      "unexpected argument for extension '%s'", NULL},
+    { 2, ERR_ILLEGAL_TYPE_NAME, "illegal-type-name", 
+      "illegal type name '%s', must be not one of the YANG built-in types.", NULL},
     { 0, 0, NULL, NULL, NULL }
 };
 

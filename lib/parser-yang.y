@@ -1034,6 +1034,9 @@ identitySubstatement:   baseStatement
 
 typedefStatement:   typedefKeyword identifierStr
                 {
+                    if (getBuiltInTypeName($2) != YANG_TYPE_NONE) {
+                        smiPrintError(thisParserPtr, ERR_ILLEGAL_TYPE_NAME, $2);
+                    }
                     node = addYangNode($2, YANG_DECL_TYPEDEF, topNode());
                     pushNode(node);
                 }

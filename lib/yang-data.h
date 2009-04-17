@@ -19,6 +19,32 @@
 #include <stdio.h>
 #include "yang.h"
 
+extern const char* yangBuiltInTypeNames[];
+
+typedef enum YangBuiltInTypes {
+    YANG_TYPE_NONE                  = -1,
+    YANG_TYPE_BINARY                = 0,
+    YANG_TYPE_BITS                  = 1,
+    YANG_TYPE_BOOLEAN               = 2,
+    YANG_TYPE_EMPTY                 = 3,
+    YANG_TYPE_ENUMERATION           = 4,
+    YANG_TYPE_FLOAT32               = 5,
+    YANG_TYPE_FLOAT64               = 6,
+    YANG_TYPE_IDENTITY              = 7,
+    YANG_TYPE_INSTANCE_IDENTIFIER   = 8,
+    YANG_TYPE_INT8                  = 9,
+    YANG_TYPE_INT16                 = 10,
+    YANG_TYPE_INT32                 = 11,
+    YANG_TYPE_INT64                 = 12,
+    YANG_TYPE_LEAFREF               = 13,
+    YANG_TYPE_STRING                = 14,
+    YANG_TYPE_UINT8                 = 15,
+    YANG_TYPE_UINT16                = 16,
+    YANG_TYPE_UINT32                = 17,
+    YANG_TYPE_UINT64                = 18,
+    YANG_TYPE_UNION                 = 19
+} YangBuiltInTypes;
+
 typedef struct _YangNode {
     YangNode            export;
     void                *info;
@@ -79,6 +105,8 @@ _YangNode* resolveNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char
 _YangNode* resolveReference(_YangNode *currentNodePtr, YangDecl nodeKind, char* prefix, char* identifierName);
 
 _YangNode *externalModule(_YangNode *importNode);
+
+YangBuiltInTypes getBuiltInTypeName(char *name);
 /*
  * YangNode fields setters
  */
