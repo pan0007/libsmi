@@ -2215,6 +2215,7 @@ anyXMLStatement: anyXMLKeyword identifierStr
             node = addYangNode($2, YANG_DECL_ANYXML, topNode());
             pushNode(node);
 		}
+        anyXMLSpec
 		{
 			pop();
 		}
