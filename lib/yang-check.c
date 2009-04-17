@@ -207,11 +207,51 @@ int countChoiceChildNodesByTypeAndValue(_YangNode *nodePtr, _YangNode *curNode, 
     return ret;
 }
 
+int validateNodeUniqueness(_YangNode *nodePtr) {
+    _YangNode *cur = nodePtr->parentPtr;
+    while (cur) {
+        if (cur->export.nodeKind == YANG_DECL_CASE) {
+            cur = cur->parentPtr;
+            if (countChoiceChildNodesByTypeAndValue(cur, nodePtr, getIdentifierGroup(nodePtr->export.nodeKind), nodePtr->export.value)) {
+                return 0;
+            }
+        } else {
+            if (countChildNodesByTypeAndValue(cur, nodePtr, getIdentifierGroup(nodePtr->export.nodeKind), nodePtr->export.value)) {
+                return 0;
+            }            
+        }
+        cur = cur->parentPtr;
+    }
+    _YangNodeList* submodules = ((_YangModuleInfo*)nodePtr->modulePtr->info)->submodules;
+    while (submodules) {
+        if (countChildNodesByTypeAndValue(submodules->nodePtr, nodePtr, getIdentifierGroup(nodePtr->export.nodeKind), nodePtr->export.value)) {
+            return 0;
+        }                    
+        submodules = submodules->next;
+    }
+    
+    return 1;
+}
+
 /*
  * Verifies that all identifiers are unique within all namespaces
  */
-void uniqueNames(_YangNode* nodePtr) {    
-    /* if the current node is choise, then all cases are the same namespace and we have to handle it differently */
+void uniqueNames(_YangNode* nodePtr) { 
+    /* go over all child nodes*/
+    _YangNode* cur = nodePtr->firstChildPtr;
+    while (cur) {            
+        YangIdentifierGroup yig = getIdentifierGroup(cur->export.nodeKind);
+        if (yig != YANG_IDGR_NONE) {            
+            if (!validateNodeUniqueness(cur)) {
+                smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
+            }
+        }
+        uniqueNames(cur);
+        cur = cur->nextSiblingPtr;
+    }
+}
+
+    /* if the current node is choise, then all cases are the same namespace and we have to handle it differently 
     if (nodePtr->export.nodeKind == YANG_DECL_CHOICE) {
         _YangNode* cur = nodePtr->firstChildPtr;
         while (cur) {
@@ -220,7 +260,7 @@ void uniqueNames(_YangNode* nodePtr) {
                 for (; caseChild; caseChild = caseChild->nextSiblingPtr) {
                     YangIdentifierGroup yig = getIdentifierGroup(caseChild->export.nodeKind);
                     if (yig != YANG_IDGR_NONE) {
-                        /* check whether this identifier has been defined before */
+                        /* check whether this identifier has been defined before 
                         if (countChoiceChildNodesByTypeAndValue(nodePtr, caseChild, getIdentifierGroup(caseChild->export.nodeKind), caseChild->export.value)) {
                             smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, caseChild->line, caseChild->export.value);
                         }
@@ -231,7 +271,7 @@ void uniqueNames(_YangNode* nodePtr) {
             } else {
                 YangIdentifierGroup yig = getIdentifierGroup(cur->export.nodeKind);
                 if (yig != YANG_IDGR_NONE) {
-                    /* check whether this identifier has been defined before */
+                    /* check whether this identifier has been defined before 
                     if (countChoiceChildNodesByTypeAndValue(nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
                         smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
                     }
@@ -240,36 +280,24 @@ void uniqueNames(_YangNode* nodePtr) {
                 cur = cur->nextSiblingPtr;
             }
         }
-    } else {        
-    /* otherwise apply a regular processing  */
-        /* go over all child nodes*/
-        _YangNode* cur = nodePtr->firstChildPtr;
-        while (cur) {            
-            YangIdentifierGroup yig = getIdentifierGroup(cur->export.nodeKind);
-            if (yig != YANG_IDGR_NONE) {
-                /* check whether this identifier is contained in one of the submodules*/
-                int isDuplicated = 0;
-                if (nodePtr->export.nodeKind == YANG_DECL_MODULE || nodePtr->export.nodeKind == YANG_DECL_SUBMODULE) {
-                    _YangNodeList* submodules = ((_YangModuleInfo*)nodePtr->info)->submodules;
-                    while (submodules) {
-                        if (countChildNodesByTypeAndValue(submodules->nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
-                            isDuplicated = 1;
-                            smiPrintErrorAtLine(currentParser, ERR_SUBMODULE_DUPLICATED_IDENTIFIER, cur->line, cur->export.value, submodules->nodePtr->export.value);
-                            break;
-                        }                    
-                        submodules = submodules->next;
-                    }
-                }                
-                /* check whether this identifier has been defined before */
-                if (!isDuplicated && countChildNodesByTypeAndValue(nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
-                    smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
-                }
-            }
-            uniqueNames(cur);
-            cur = cur->nextSiblingPtr;
-        }
+    } else {    */
+/* check whether this identifier is contained in one of the submodules
+int isDuplicated = 0;
+if (nodePtr->export.nodeKind == YANG_DECL_MODULE || nodePtr->export.nodeKind == YANG_DECL_SUBMODULE) {
+    _YangNodeList* submodules = ((_YangModuleInfo*)nodePtr->info)->submodules;
+    while (submodules) {
+        if (countChildNodesByTypeAndValue(submodules->nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
+            isDuplicated = 1;
+            smiPrintErrorAtLine(currentParser, ERR_SUBMODULE_DUPLICATED_IDENTIFIER, cur->line, cur->export.value, submodules->nodePtr->export.value);
+            break;
+        }                    
+        submodules = submodules->next;
     }
-}
+}                
+/* check whether this identifier has been defined before 
+if (!isDuplicated && countChildNodesByTypeAndValue(nodePtr, cur, getIdentifierGroup(cur->export.nodeKind), cur->export.value)) {
+    smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
+}*/
 
 /*
  * Verifies that the extension matches the extension definition

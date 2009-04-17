@@ -1,0 +1,2 @@
+leaf1.yang:20: identifier 'port' is already defined within the namespace
+leaf1.yang:36: identifier 'domain-search' is already defined within the namespace
