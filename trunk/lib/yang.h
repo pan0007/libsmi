@@ -136,8 +136,8 @@ typedef struct YangNode {
     YangDecl		nodeKind;
     YangStatus		status;
     YangConfig		config;
-    char		*description;
-    char		*reference;
+    char            *description;
+    char            *reference;
 } YangNode;
 
 /*

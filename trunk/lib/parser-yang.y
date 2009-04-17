@@ -157,6 +157,19 @@ Parser *currentParser = NULL;
 
 static _YangNode *node = NULL;
 
+char* getPrefix(char* identifierRef) {
+    char* colonIndex = strchr(identifierRef, ':');
+    if (!colonIndex) return NULL;
+    return smiStrndup(identifierRef, colonIndex - identifierRef);
+}
+
+char* getIdentifier(char* identifierRef) {
+    char* colonIndex = strchr(identifierRef, ':');
+    if (!colonIndex) return smiStrdup(identifierRef);
+    return smiStrdup(colonIndex + 1);
+}
+
+
 
 /*static Type *findType(char* spec)
 {
@@ -1271,7 +1284,7 @@ bitsSpec:   bitsStatement stmtSep
             bitsSpec bitsStatement stmtSep
         ;
 
-bitsStatement: bitKeyword identifierRef 
+bitsStatement: bitKeyword identifier 
             {
                 node = addYangNode($2, YANG_DECL_BIT, topNode());
                 pushNode(node);
@@ -1335,7 +1348,8 @@ unknownStatement0_n:
 unknownStatement:   identifierRefArg 
                     {
                         node = addYangNode($1, YANG_DECL_UNKNOWN_STATEMENT, topNode());
-                        pushNode(node);                        
+                        createIdentifierRef(node, getPrefix($1), getIdentifier($1));
+                        pushNode(node);
                     }
                     stmtEnd 
                     {
@@ -1345,6 +1359,7 @@ unknownStatement:   identifierRefArg
                     identifierRefArg string
                     {
                         node = addYangNode($1, YANG_DECL_UNKNOWN_STATEMENT, topNode());
+                        createIdentifierRef(node, getPrefix($1), getIdentifier($1));
                         node->export.extra = smiStrdup($2);
                         pushNode(node);
                     }

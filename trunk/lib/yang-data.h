@@ -21,13 +21,13 @@
 
 typedef struct _YangNode {
     YangNode            export;
-    int                 line;
     void                *info;
+    int                 line;
     struct _YangNode  	*firstChildPtr;
     struct _YangNode  	*lastChildPtr;    
     struct _YangNode  	*nextSiblingPtr;
     struct _YangNode  	*parentPtr;
-    struct _YangNode  	*modulePtr;    
+    struct _YangNode  	*modulePtr;
 } _YangNode;
 
 typedef struct _YangNodeList {
@@ -59,6 +59,11 @@ typedef struct _YangModuleInfo {
     struct _YangImportList *imports;
 } _YangModuleInfo;
 
+typedef struct _YangIdentifierRefInfo {
+    char		*prefix;
+	char		*identifierName;
+} _YangIdentifierRefInfo;
+
 _YangNode *findYangModuleByName(const char *modulename);
 
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr);
@@ -68,6 +73,10 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr);
 _YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind);
 
 _YangNode* findChildNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value);
+
+_YangNode* resolveNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value, int depth);
+
+_YangNode* resolveReference(_YangNode *currentNodePtr, YangDecl nodeKind, char* prefix, char* identifierName);
 
 _YangNode *externalModule(_YangNode *importNode);
 /*

@@ -16,6 +16,7 @@
 #include <string.h>
 
 #include "yang.h"
+#include "smi.h"
 
 #include <string.h>
 #include <errno.h>
@@ -176,6 +177,35 @@ _YangNode *findYangModuleByName(const char *modulename)
     return (NULL);
 }
 
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * findYangModuleByPrefix --
+ *
+ *      Lookup a Yang module by a given prefix.
+ *
+ * Results:
+ *      A pointer to the _YangNode structure or
+ *      NULL if it is not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+
+
+_YangNode *findYangModuleByPrefix(_YangNode *module, const char *prefix)
+{
+    _YangImportList *imports = getModuleInfo(module)->imports;    
+    for (; imports; imports = imports->next) {
+        if (!strcmp(imports->prefix, prefix)) {
+            return imports->modulePtr;
+        }
+    }
+    return (NULL);
+}
 /*
  *----------------------------------------------------------------------
  *
@@ -228,6 +258,69 @@ _YangNode* findChildNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, ch
     return NULL;
 }
 
+/*
+ *----------------------------------------------------------------------
+ *
+ * resolveNodeByTypeAndValue
+ *
+ *      Resolve a node by a given type.
+ *
+ * Results:
+ *      A pointer to the _YangNode structure or
+ *      NULL if it is not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+_YangNode* resolveNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value, int depth) {
+    if (depth < 0) return NULL;
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        if (childPtr->export.nodeKind == nodeKind && !strcmp(childPtr->export.value, value)) {
+            return childPtr;
+        }
+    }
+    if (nodePtr->parentPtr) {
+        _YangNode *ret = resolveNodeByTypeAndValue(nodePtr->parentPtr, nodeKind, value, depth);
+        if (ret) return ret;
+    } else {
+        _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
+        for (; submodules; submodules = submodules->next) {            
+            _YangNode *ret = resolveNodeByTypeAndValue(submodules->nodePtr, nodeKind, value, depth - 1);
+            if (ret) return ret;
+        }        
+    }
+    return NULL;
+}
+
+/*
+ *----------------------------------------------------------------------
+ *
+ * resolveReference
+ *
+ *      Resolve a reference by a given type.
+ *
+ * Results:
+ *      A pointer to the _YangNode structure or
+ *      NULL if it is not found.
+ *
+ * Side effects:
+ *      None.
+ *
+ *----------------------------------------------------------------------
+ */
+_YangNode* resolveReference(_YangNode *currentNodePtr, YangDecl nodeKind, char* prefix, char* identifierName) {
+    if (prefix && strcmp(getModuleInfo(currentNodePtr->modulePtr)->prefix, prefix)) {
+        _YangNode *modulePtr = findYangModuleByPrefix(currentNodePtr->modulePtr, prefix);
+        if (!modulePtr) return NULL;
+        return resolveNodeByTypeAndValue(modulePtr, nodeKind, identifierName, 1);
+    } else {
+        return resolveNodeByTypeAndValue(currentNodePtr, nodeKind, identifierName, 1);
+    }
+    return NULL;
+}
 
  /*----------------------------------------------------------------------
  *
@@ -260,6 +353,19 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr)
     Module *module = addModule(smiStrdup(modulePtr->export.value), smiStrdup(currentParser->path), 0, currentParser);
     currentParser->modulePtr = module;
     return (infoPtr);
+}
+
+void createIdentifierRef(_YangNode *node, char* prefix, char* identifier) {
+    _YangIdentifierRefInfo *infoPtr = smiMalloc(sizeof(_YangIdentifierRefInfo));
+    
+    if (prefix) {
+        infoPtr->prefix = prefix;
+    } else {
+        infoPtr->prefix = getModuleInfo(node->modulePtr)->prefix;
+    }
+    infoPtr->identifierName = identifier;
+    
+    node->info = infoPtr;   
 }
 
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr)
@@ -563,19 +669,28 @@ void freeYangNode(_YangNode *nodePtr) {
     nodePtr->export.reference = NULL;
     
     if (nodePtr->export.nodeKind == YANG_DECL_MODULE || nodePtr->export.nodeKind == YANG_DECL_SUBMODULE) {
-        _YangNodeList *cur = getModuleInfo(nodePtr)->submodules;
-        while (cur) {
-            _YangNodeList *next = cur->next;
-            smiFree(cur);
-            cur = next;
+        _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
+        while (submodules) {
+            _YangNodeList *next = submodules->next;
+            smiFree(submodules);
+            submodules = next;
         }
-        _YangImportList *curImport = getModuleInfo(nodePtr)->imports;
-        while (curImport) {
-            _YangImportList *next = curImport->next;
-            smiFree(curImport);
-            curImport = next;
+        _YangImportList *imports = getModuleInfo(nodePtr)->imports;
+        while (imports) {
+            _YangImportList *next = imports->next;
+            smiFree(imports);
+            imports = next;
         }        
     }
+    
+    if (nodePtr->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
+        _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
+        smiFree(info->identifierName);
+        smiFree(info->prefix);
+        smiFree(info);
+        nodePtr->info = NULL;
+    }
+        
     
     smiFree(nodePtr->info);
     nodePtr->info = NULL;
