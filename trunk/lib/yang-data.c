@@ -49,6 +49,40 @@
  */
 extern Parser *currentParser;
 
+const int builtInTypeCount = 20;
+
+const char* yangBuiltInTypeNames[] = {  "binary",
+                                        "bits",
+                                        "boolean",
+                                        "empty",
+                                        "enumeration",
+                                        "float32",
+                                        "float64",
+                                        "identityref",
+                                        "instance-identifier",
+                                        "int8",
+                                        "int16",
+                                        "int32",
+                                        "int64",
+                                        "leafref",
+                                        "string",
+                                        "uint8",
+                                        "uint16",
+                                        "uint32",
+                                        "uint64",
+                                        "union"
+};
+
+
+YangBuiltInTypes getBuiltInTypeName(char *name) {
+    int i;
+    for (i = 0; i <  builtInTypeCount; i++) {
+        if (!strcmp(yangBuiltInTypeNames[i], name)) {
+            return i;
+        }
+    }
+    return YANG_TYPE_NONE;
+}
 /*
  * YangNode fields setters
  */
