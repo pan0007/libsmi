@@ -1,1 +1,1 @@
-composite.yang:11: submodule 'submod2' does not belong to 'composite' module
+composite.yang:11: submodule 'submod2' does not belong to module 'composite'

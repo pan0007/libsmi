@@ -2,3 +2,4 @@
 15.yang:27: status has been already defined
 15.yang:31: description already defined
 15.yang:34: reference already defined
+15.yang:22: identifier 'ext1' is already defined within the namespace

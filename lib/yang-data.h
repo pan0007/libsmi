@@ -21,12 +21,13 @@
 
 typedef struct _YangNode {
     YangNode            export;
+    int                 line;
     void                *info;
     struct _YangNode  	*firstChildPtr;
     struct _YangNode  	*lastChildPtr;    
     struct _YangNode  	*nextSiblingPtr;
     struct _YangNode  	*parentPtr;
-    struct _YangNode  	*modulePtr;
+    struct _YangNode  	*modulePtr;    
 } _YangNode;
 
 typedef struct _YangNodeList {

@@ -557,6 +557,7 @@ yangFile:		moduleStatement
 
 moduleStatement:	moduleKeyword identifierStr
 			{
+                currentParser = thisParserPtr;
                 thisParserPtr->yangModulePtr = findYangModuleByName($2);
 			    if (!thisParserPtr->yangModulePtr) {
                     thisParserPtr->yangModulePtr =  addYangNode($2, YANG_DECL_MODULE, NULL);
@@ -575,7 +576,6 @@ moduleStatement:	moduleKeyword identifierStr
                      */
                     YYABORT;
 			    }
-                currentParser = thisParserPtr;
                 thisModulePtr->info = createModuleInfo(thisModulePtr);
                 pushNode(thisModulePtr);
 			}
@@ -590,12 +590,13 @@ moduleStatement:	moduleKeyword identifierStr
 			{
                 thisModuleInfoPtr->parsingState  = YANG_PARSING_DONE;
                 pop();
-                semanticAnalysis(thisModuleInfoPtr);
+                semanticAnalysis(thisModulePtr);
 			}
 	;
 
 submoduleStatement:	submoduleKeyword identifierStr
 			{
+                currentParser = thisParserPtr;
                 thisParserPtr->yangModulePtr = findYangModuleByName($2);
 			    if (!thisParserPtr->yangModulePtr) {
                     thisParserPtr->yangModulePtr =  addYangNode($2, YANG_DECL_SUBMODULE, NULL);
@@ -629,7 +630,7 @@ submoduleStatement:	submoduleKeyword identifierStr
 			{
                 thisModuleInfoPtr->parsingState  = YANG_PARSING_DONE;
                 pop();
-                semanticAnalysis(thisModuleInfoPtr);
+                semanticAnalysis(thisModulePtr);
 			}
 	;
 

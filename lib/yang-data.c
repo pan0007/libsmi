@@ -205,9 +205,9 @@ _YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind) {
 /*
  *----------------------------------------------------------------------
  *
- * findChildNodeByType --
+ * findChildNodeByTypeAndValue --
  *
- *      Lookup a child node by a given type.
+ *      Lookup a child node by a given type and value.
  *
  * Results:
  *      A pointer to the _YangNode structure or
@@ -273,6 +273,7 @@ _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPt
     node->export.extra  		= NULL;
     node->export.config         = YANG_CONFIG_DEFAULT_TRUE;
     node->export.status         = YANG_STATUS_DEFAULT_CURRENT;
+    node->line                  = currentParser->line;
     
     node->info                  = NULL;    
     
@@ -334,7 +335,7 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
 
     /* module can not be located, the last try */
     if (!path && parserPtr && parserPtr->path) {
-        /*  searching for a module at the path where the previous module was found
+        /*  searching for the module at the path where the previous module was found
             it's used by the imported modules */
         int slashIndex = -1;
         int i = 0;
@@ -350,7 +351,7 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
             dir[slashIndex + 1] = 0;
             strncpy(dir, parserPtr->path, slashIndex + 1);
 
-            smiAsprintf(&path, "%s%c%s%s", dir, DIR_SEPARATOR, modulename, ".yang");
+            smiAsprintf(&path, "%s%s%s", dir, modulename, ".yang");
             
             // TODO: implement path extraction and construction 
             smiFree(dir);

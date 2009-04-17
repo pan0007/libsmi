@@ -12,7 +12,7 @@ for n in $abssrcdir/yang/*.yang ; do
     mib=`basename $n`
     echo -n "Checking $mib. "
     cd $WORKDIR
-    ../../tools/smilint -c/dev/null -l9 $n 2>&1 | sed -e "s/^.*\/$mib\(.*\)/$mib\1/" > $mib.out
+    ../../tools/smilint -c/dev/null -l9 $n 2>&1 | sed -e "s/^.*\/$m\(.*\)/$m\1/" > $mib.out
      cd ..
     cmp -s $WORKDIR/$mib.out yang/$mib.exp
     if [ $? -ne 0 ] ; then
