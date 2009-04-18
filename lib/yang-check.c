@@ -209,27 +209,34 @@ int countChoiceChildNodesByTypeAndValue(_YangNode *nodePtr, _YangNode *curNode, 
 }
 
 int validateNodeUniqueness(_YangNode *nodePtr) {
+    YangIdentifierGroup ig = getIdentifierGroup(nodePtr->export.nodeKind);
     _YangNode *cur = nodePtr->parentPtr;
     while (cur) {
         if (cur->export.nodeKind == YANG_DECL_CASE) {
             cur = cur->parentPtr;
-            if (countChoiceChildNodesByTypeAndValue(cur, nodePtr, getIdentifierGroup(nodePtr->export.nodeKind), nodePtr->export.value)) {
+            if (countChoiceChildNodesByTypeAndValue(cur, nodePtr, ig, nodePtr->export.value)) {
                 return 0;
             }
         } else {
-            if (countChildNodesByTypeAndValue(cur, nodePtr, getIdentifierGroup(nodePtr->export.nodeKind), nodePtr->export.value)) {
+            if (countChildNodesByTypeAndValue(cur, nodePtr, ig, nodePtr->export.value)) {
                 return 0;
             }            
         }
         cur = cur->parentPtr;
+        if (ig == YANG_IDGR_NODE) {
+            break;
+        }
     }
-    _YangNodeList* submodules = ((_YangModuleInfo*)nodePtr->modulePtr->info)->submodules;
-    while (submodules) {
-        if (countChildNodesByTypeAndValue(submodules->nodePtr, nodePtr, getIdentifierGroup(nodePtr->export.nodeKind), nodePtr->export.value)) {
-            return 0;
-        }                    
-        submodules = submodules->next;
-    }    
+    /* check with all submodules if it's a top-level definition or not a data defition statement */
+    if (ig != YANG_IDGR_NODE || !nodePtr->parentPtr->parentPtr) {
+        _YangNodeList* submodules = ((_YangModuleInfo*)nodePtr->modulePtr->info)->submodules;
+        while (submodules) {
+            if (countChildNodesByTypeAndValue(submodules->nodePtr, nodePtr, ig, nodePtr->export.value)) {
+                return 0;
+            }                    
+            submodules = submodules->next;
+        }    
+    }
     return 1;
 }
 
