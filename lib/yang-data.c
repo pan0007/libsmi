@@ -718,12 +718,17 @@ void freeYangNode(_YangNode *nodePtr) {
     }
     
     if (nodePtr->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
-        nodePtr->export.nodeKind == YANG_DECL_IF_FEATURE) {
-        _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
-        smiFree(info->identifierName);
-        smiFree(info->prefix);
-        smiFree(info);
-        nodePtr->info = NULL;
+        nodePtr->export.nodeKind == YANG_DECL_IF_FEATURE ||
+        nodePtr->export.nodeKind == YANG_DECL_TYPE ||
+        nodePtr->export.nodeKind == YANG_DECL_USES || 
+        nodePtr->export.nodeKind == YANG_DECL_BASE) {
+            _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
+            if (info) {
+                smiFree(info->identifierName);
+                smiFree(info->prefix);
+                smiFree(info);
+                nodePtr->info = NULL;
+            }
     }
         
     
