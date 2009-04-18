@@ -671,14 +671,8 @@ moduleHeaderStatement:	yangVersionStatement stmtSep
 		;
 
 moduleMetaStatement_0n:	
-		     	{
-				$$ = 1;
-			}
 		|
 			moduleMetaStatement_0n moduleMetaStatement stmtSep
-			{
-				$$ = 1 + $2;
-			}
 		;
 
 moduleMetaStatement:	organizationStatement
@@ -1075,6 +1069,11 @@ typedefSubstatement:
 typeStatement: typeKeyword identifierRef 
                {
                     node = addYangNode($2, YANG_DECL_TYPE, topNode());
+                    if (getBuiltInTypeName($2) != YANG_TYPE_NONE) {
+                        // TODO: built-in type
+                    } else {
+                        createIdentifierRef(node, getPrefix($2), getIdentifier($2));
+                    }
                     pushNode(node);
                }
                optionalTypeBodyStatements
@@ -1280,6 +1279,7 @@ baseStatement: baseKeyword identifierRef stmtEnd
             {
                 uniqueNodeKind(topNode(), YANG_DECL_BASE);
                 node = addYangNode($2, YANG_DECL_BASE, topNode());
+                createIdentifierRef(node, getPrefix($2), getIdentifier($2));
             }
             ;
 
@@ -1813,6 +1813,7 @@ groupingSubstatement:	statusStatement
 usesStatement:  usesKeyword identifierRef
             {
                 node = addYangNode($2, YANG_DECL_USES, topNode());
+                createIdentifierRef(node, getPrefix($2), getIdentifier($2));
                 pushNode(node);
             }
             '{'
@@ -1825,6 +1826,7 @@ usesStatement:  usesKeyword identifierRef
                 usesKeyword identifierRef
             {
                 node = addYangNode($2, YANG_DECL_USES, topNode());
+                createIdentifierRef(node, getPrefix($2), getIdentifier($2));
             }
             ';'
             ;

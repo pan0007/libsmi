@@ -251,26 +251,41 @@ void uniqueNames(_YangNode* nodePtr) {
     }
 }
 
-void resolveReferences(_YangNode* node) {
-    if (node->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
-        _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
-        _YangNode *extension = resolveReference(node->parentPtr, YANG_DECL_EXTENSION, identifierRef->prefix, identifierRef->identifierName);
-        if (!extension) {
-            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
-        }
-        _YangNode *argument = findChildNodeByType(extension, YANG_DECL_ARGUMENT);
-        if (argument && !node->export.extra) {
-            smiPrintErrorAtLine(currentParser, ERR_EXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
-        } else if (!argument && node->export.extra) {
-            smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
-        }
-    } else if (node->export.nodeKind == YANG_DECL_IF_FEATURE) {
-        _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
-        _YangNode *feature = resolveReference(node->parentPtr, YANG_DECL_FEATURE, identifierRef->prefix, identifierRef->identifierName);
+int map[65];
 
-        if (!feature) {
-            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
-        }
+void initMap() {
+    map[YANG_DECL_UNKNOWN_STATEMENT] = YANG_DECL_EXTENSION;
+    map[YANG_DECL_IF_FEATURE] = YANG_DECL_FEATURE;
+    map[YANG_DECL_TYPE] = YANG_DECL_TYPEDEF;
+    map[YANG_DECL_USES] = YANG_DECL_GROUPING;
+    map[YANG_DECL_BASE] = YANG_DECL_IDENTITY;
+}
+
+void resolveReferences(_YangNode* node) {
+    YangDecl nodeKind = node->export.nodeKind;
+    if (node->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
+        node->export.nodeKind == YANG_DECL_IF_FEATURE ||
+        (node->export.nodeKind == YANG_DECL_TYPE && getBuiltInTypeName(node->export.value) == YANG_TYPE_NONE) ||
+        node->export.nodeKind == YANG_DECL_USES ||
+        node->export.nodeKind == YANG_DECL_BASE) {
+            _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
+            _YangNode *reference = resolveReference(node->parentPtr, map[nodeKind], identifierRef->prefix, identifierRef->identifierName);
+            if (!reference) {
+                smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
+            }
+
+        
+            if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
+                _YangNode *argument = findChildNodeByType(reference, YANG_DECL_ARGUMENT);
+                if (argument && !node->export.extra) {
+                    smiPrintErrorAtLine(currentParser, ERR_EXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
+                } else if (!argument && node->export.extra) {
+                    smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
+                }
+            } else if (nodeKind == YANG_DECL_IF_FEATURE) {
+            } else if (nodeKind == YANG_DECL_TYPE) {
+            } else if (nodeKind == YANG_DECL_USES) {
+            }
     }
 
     _YangNode *child = node->firstChildPtr;
@@ -280,23 +295,8 @@ void resolveReferences(_YangNode* node) {
     }
 }
 
-void resolveIfFeatures(_YangNode* node) {
-    if (node->export.nodeKind == YANG_DECL_IF_FEATURE) {
-        _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
-        _YangNode *feature = resolveReference(node->parentPtr, YANG_DECL_FEATURE, identifierRef->prefix, identifierRef->identifierName);
-
-        if (!feature) {
-            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
-        }
-    }
-    _YangNode *child = node->firstChildPtr;
-    while (child) {
-        resolveIfFeatures(child);
-        child = child->nextSiblingPtr;
-    }    
-}
-
-void semanticAnalysis(_YangNode *module) {
+void semanticAnalysis(_YangNode *module) {   
+    initMap();
     uniqueNames(module);
     resolveReferences(module);
 }
