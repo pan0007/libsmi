@@ -998,6 +998,7 @@ featureSubstatement:    ifFeatureStatement
 ifFeatureStatement: ifFeatureKeyword identifierRef stmtEnd
                     {
                         node = addYangNode($2, YANG_DECL_IF_FEATURE, topNode());
+                        createIdentifierRef(node, getPrefix($2), getIdentifier($2));
                     }
                     ;
 
