@@ -393,11 +393,13 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* identifier) {
     _YangIdentifierRefInfo *infoPtr = smiMalloc(sizeof(_YangIdentifierRefInfo));
     
     if (prefix) {
-        infoPtr->prefix = prefix;
+        infoPtr->prefix = smiStrdup(prefix);
     } else {
         infoPtr->prefix = getModuleInfo(node->modulePtr)->prefix;
     }
     infoPtr->identifierName = identifier;
+    infoPtr->resolvedNode = NULL;
+    infoPtr->met = NULL;
     
     node->info = infoPtr;   
 }
@@ -701,8 +703,9 @@ void freeYangNode(_YangNode *nodePtr) {
     nodePtr->export.extra = NULL;    
     nodePtr->export.description = NULL;
     nodePtr->export.reference = NULL;
+    YangDecl nodeKind = nodePtr->export.nodeKind;
     
-    if (nodePtr->export.nodeKind == YANG_DECL_MODULE || nodePtr->export.nodeKind == YANG_DECL_SUBMODULE) {
+    if (nodeKind == YANG_DECL_MODULE || nodeKind == YANG_DECL_SUBMODULE) {
         _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
         while (submodules) {
             _YangNodeList *next = submodules->next;
@@ -717,15 +720,13 @@ void freeYangNode(_YangNode *nodePtr) {
         }        
     }
     
-    if (nodePtr->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
-        nodePtr->export.nodeKind == YANG_DECL_IF_FEATURE ||
-        nodePtr->export.nodeKind == YANG_DECL_TYPE ||
-        nodePtr->export.nodeKind == YANG_DECL_USES || 
-        nodePtr->export.nodeKind == YANG_DECL_BASE) {
+    if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
+        nodeKind == YANG_DECL_IF_FEATURE ||
+        nodeKind == YANG_DECL_TYPE ||
+        nodeKind == YANG_DECL_USES || 
+        nodeKind == YANG_DECL_BASE) {
             _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
             if (info) {
-                smiFree(info->identifierName);
-                smiFree(info->prefix);
                 smiFree(info);
                 nodePtr->info = NULL;
             }

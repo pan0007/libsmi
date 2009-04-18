@@ -263,28 +263,59 @@ void initMap() {
 
 void resolveReferences(_YangNode* node) {
     YangDecl nodeKind = node->export.nodeKind;
-    if (node->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
-        node->export.nodeKind == YANG_DECL_IF_FEATURE ||
-        (node->export.nodeKind == YANG_DECL_TYPE && getBuiltInTypeName(node->export.value) == YANG_TYPE_NONE) ||
-        node->export.nodeKind == YANG_DECL_USES ||
-        node->export.nodeKind == YANG_DECL_BASE) {
-            _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
-            _YangNode *reference = resolveReference(node->parentPtr, map[nodeKind], identifierRef->prefix, identifierRef->identifierName);
-            if (!reference) {
-                smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
-            }
+    if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
+        nodeKind == YANG_DECL_IF_FEATURE ||
+        (nodeKind == YANG_DECL_TYPE && getBuiltInTypeName(node->export.value) == YANG_TYPE_NONE) ||
+        nodeKind == YANG_DECL_USES ||
+        nodeKind == YANG_DECL_BASE) {            
+            _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;            
+            if (!identifierRef->resolvedNode) {
 
-        
-            if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
-                _YangNode *argument = findChildNodeByType(reference, YANG_DECL_ARGUMENT);
-                if (argument && !node->export.extra) {
-                    smiPrintErrorAtLine(currentParser, ERR_EXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
-                } else if (!argument && node->export.extra) {
-                    smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
+                _YangNode *reference = resolveReference(node->parentPtr, map[nodeKind], identifierRef->prefix, identifierRef->identifierName);
+                if (!reference) {
+                    smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
                 }
-            } else if (nodeKind == YANG_DECL_IF_FEATURE) {
-            } else if (nodeKind == YANG_DECL_TYPE) {
-            } else if (nodeKind == YANG_DECL_USES) {
+                identifierRef->resolvedNode = reference;
+                identifierRef->met = node;
+
+                
+                if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
+                    /* check the argument */
+                    _YangNode *argument = findChildNodeByType(reference, YANG_DECL_ARGUMENT);
+                    if (argument && !node->export.extra) {
+                        smiPrintErrorAtLine(currentParser, ERR_EXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
+                    } else if (!argument && node->export.extra) {
+                        smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
+                    }
+                } else if (nodeKind == YANG_DECL_IF_FEATURE) {
+                    /* check whether there is no cyclic reference */
+                    if (node->parentPtr->export.nodeKind == YANG_DECL_FEATURE) {
+                        _YangNode *cur = identifierRef->resolvedNode;
+                        while (cur) {
+                            _YangNode *ifFeature = findChildNodeByType(cur, YANG_DECL_IF_FEATURE);
+                            if (ifFeature) {
+                                _YangIdentifierRefInfo* info = ((_YangIdentifierRefInfo*)ifFeature->info);
+                                if (!info->resolvedNode) {
+                                        info->resolvedNode = resolveReference(node->parentPtr, map[nodeKind], identifierRef->prefix, identifierRef->identifierName);
+                                        if (!info->resolvedNode) {
+                                            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, ifFeature->line, info->prefix, info->identifierName);
+                                        }
+                                        info->met = node;
+                                        cur = info->resolvedNode;
+                                } else {
+                                    if (info->met == node) {
+                                        smiPrintErrorAtLine(currentParser, ERR_CYCLIC_REFERENCE_CHAIN, info->resolvedNode->line, info->resolvedNode->export.value);
+                                    }
+                                    break;
+                                }                                     
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                } else if (nodeKind == YANG_DECL_TYPE) {
+                } else if (nodeKind == YANG_DECL_USES) {
+                }
             }
     }
 

@@ -1,0 +1,2 @@
+cyclic-features.yang:6: 'local' is in a cyclic reference chain
+cyclic-features.yang:24: 'f2' is in a cyclic reference chain

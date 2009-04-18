@@ -88,6 +88,8 @@ typedef struct _YangModuleInfo {
 typedef struct _YangIdentifierRefInfo {
     char		*prefix;
 	char		*identifierName;
+    _YangNode   *resolvedNode;
+    _YangNode   *met;
 } _YangIdentifierRefInfo;
 
 _YangNode *findYangModuleByName(const char *modulename);
