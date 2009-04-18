@@ -74,8 +74,7 @@ dumpYangSK(int modc, SmiModule **modv, int flags, char *output)
     for (i = 0; i < modc; i++) {        
         smiModule = modv[i];
         YangNode *module = yangGetModule(smiModule->name);
-        fprintYangNode(f, 0, module);
-        
+        fprintYangNode(f, 0, module);        
     }
 
     if (fflush(f) || ferror(f)) {

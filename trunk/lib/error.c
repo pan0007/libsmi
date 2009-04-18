@@ -751,7 +751,7 @@ static Error errors[] = {
     { 2, ERR_ILLEGAL_TYPE_NAME, "illegal-type-name", 
       "illegal type name '%s', must be not one of the YANG built-in types.", NULL},
     { 2, ERR_CYCLIC_REFERENCE_CHAIN, "cyclic-reference-chain", 
-      "circular dependency for identity '%s'", NULL},
+      "circular dependency for identifier '%s'", NULL},
     { 0, 0, NULL, NULL, NULL }
 };
 

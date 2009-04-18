@@ -19,6 +19,7 @@
 
 #include "yang.h"
 #include "smi.h"
+#include "smi.h"
 
 #include <string.h>
 #include <errno.h>
@@ -409,7 +410,7 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* identifier) {
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr)
 {
 	_YangNode *node = (_YangNode*) smiMalloc(sizeof(_YangNode));
-	
+    node->isOriginal            = 1;
 	node->export.value          = smiStrdup(value);
 	node->export.nodeKind       = nodeKind;
     node->export.description	= NULL;
@@ -731,8 +732,6 @@ void freeYangNode(_YangNode *nodePtr) {
             if (info) {
                 smiFree(info->identifierName);
                 smiFree(info->prefix);
-                smiFree(info);
-                nodePtr->info = NULL;
             }
     }
         

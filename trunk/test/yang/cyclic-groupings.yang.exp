@@ -1,0 +1,3 @@
+cyclic-groupings.yang:5: identifier 'target' is already defined within the namespace
+cyclic-groupings.yang:5: identifier 'target' is already defined within the namespace
+cyclic-groupings.yang:18: identifier 'test1' is already defined within the namespace

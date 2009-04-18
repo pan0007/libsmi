@@ -1,2 +1,2 @@
-cyclic-features.yang:6: circular dependency for identity 'local'
-cyclic-features.yang:24: circular dependency for identity 'f2'
+cyclic-features.yang:6: circular dependency for identifier 'local'
+cyclic-features.yang:24: circular dependency for identifier 'f2'
