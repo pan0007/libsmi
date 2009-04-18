@@ -287,18 +287,18 @@ void resolveReferences(_YangNode* node) {
                     } else if (!argument && node->export.extra) {
                         smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
                     }
-                } else if (nodeKind == YANG_DECL_IF_FEATURE) {
+                } else if (nodeKind == YANG_DECL_IF_FEATURE || nodeKind == YANG_DECL_BASE) {
                     /* check whether there is no cyclic reference */
-                    if (node->parentPtr->export.nodeKind == YANG_DECL_FEATURE) {
+                    if (node->parentPtr->export.nodeKind == map[nodeKind]) {
                         _YangNode *cur = identifierRef->resolvedNode;
                         while (cur) {
-                            _YangNode *ifFeature = findChildNodeByType(cur, YANG_DECL_IF_FEATURE);
-                            if (ifFeature) {
-                                _YangIdentifierRefInfo* info = ((_YangIdentifierRefInfo*)ifFeature->info);
+                            _YangNode *childRef = findChildNodeByType(cur, nodeKind);
+                            if (childRef) {
+                                _YangIdentifierRefInfo* info = ((_YangIdentifierRefInfo*)childRef->info);
                                 if (!info->resolvedNode) {
                                         info->resolvedNode = resolveReference(node->parentPtr, map[nodeKind], identifierRef->prefix, identifierRef->identifierName);
                                         if (!info->resolvedNode) {
-                                            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, ifFeature->line, info->prefix, info->identifierName);
+                                            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, childRef->line, info->prefix, info->identifierName);
                                         }
                                         info->met = node;
                                         cur = info->resolvedNode;
@@ -316,6 +316,7 @@ void resolveReferences(_YangNode* node) {
                 } else if (nodeKind == YANG_DECL_TYPE) {
                 } else if (nodeKind == YANG_DECL_USES) {
                 }
+                    
             }
     }
 
