@@ -267,7 +267,7 @@ void resolveReferences(_YangNode* node) {
         nodeKind == YANG_DECL_IF_FEATURE ||
         (nodeKind == YANG_DECL_TYPE && getBuiltInTypeName(node->export.value) == YANG_TYPE_NONE) ||
         nodeKind == YANG_DECL_USES ||
-        nodeKind == YANG_DECL_BASE) {            
+        nodeKind == YANG_DECL_BASE) {
             _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;            
             if (!identifierRef->resolvedNode) {
 

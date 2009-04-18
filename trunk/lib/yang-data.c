@@ -13,6 +13,8 @@
  */
 
 #include <config.h>
+
+#include "smi.h"
 #include <string.h>
 
 #include "yang.h"
@@ -393,9 +395,9 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* identifier) {
     _YangIdentifierRefInfo *infoPtr = smiMalloc(sizeof(_YangIdentifierRefInfo));
     
     if (prefix) {
-        infoPtr->prefix = smiStrdup(prefix);
+        infoPtr->prefix = prefix;
     } else {
-        infoPtr->prefix = getModuleInfo(node->modulePtr)->prefix;
+        infoPtr->prefix = smiStrdup(getModuleInfo(node->modulePtr)->prefix);
     }
     infoPtr->identifierName = identifier;
     infoPtr->resolvedNode = NULL;
@@ -727,6 +729,8 @@ void freeYangNode(_YangNode *nodePtr) {
         nodeKind == YANG_DECL_BASE) {
             _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
             if (info) {
+                smiFree(info->identifierName);
+                smiFree(info->prefix);
                 smiFree(info);
                 nodePtr->info = NULL;
             }
