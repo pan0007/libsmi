@@ -717,7 +717,8 @@ void freeYangNode(_YangNode *nodePtr) {
         }        
     }
     
-    if (nodePtr->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
+    if (nodePtr->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
+        nodePtr->export.nodeKind == YANG_DECL_IF_FEATURE) {
         _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
         smiFree(info->identifierName);
         smiFree(info->prefix);

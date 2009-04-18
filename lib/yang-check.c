@@ -251,10 +251,7 @@ void uniqueNames(_YangNode* nodePtr) {
     }
 }
 
-/*
- * Verifies that the extension matches the extension definition
- */
-void resolveExtentions(_YangNode* node) {
+void resolveReferences(_YangNode* node) {
     if (node->export.nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
         _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
         _YangNode *extension = resolveReference(node->parentPtr, YANG_DECL_EXTENSION, identifierRef->prefix, identifierRef->identifierName);
@@ -267,15 +264,39 @@ void resolveExtentions(_YangNode* node) {
         } else if (!argument && node->export.extra) {
             smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
         }
+    } else if (node->export.nodeKind == YANG_DECL_IF_FEATURE) {
+        _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
+        _YangNode *feature = resolveReference(node->parentPtr, YANG_DECL_FEATURE, identifierRef->prefix, identifierRef->identifierName);
+
+        if (!feature) {
+            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
+        }
     }
+
     _YangNode *child = node->firstChildPtr;
     while (child) {
-        resolveExtentions(child);
+        resolveReferences(child);
         child = child->nextSiblingPtr;
     }
 }
 
+void resolveIfFeatures(_YangNode* node) {
+    if (node->export.nodeKind == YANG_DECL_IF_FEATURE) {
+        _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
+        _YangNode *feature = resolveReference(node->parentPtr, YANG_DECL_FEATURE, identifierRef->prefix, identifierRef->identifierName);
+
+        if (!feature) {
+            smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
+        }
+    }
+    _YangNode *child = node->firstChildPtr;
+    while (child) {
+        resolveIfFeatures(child);
+        child = child->nextSiblingPtr;
+    }    
+}
+
 void semanticAnalysis(_YangNode *module) {
     uniqueNames(module);
-    resolveExtentions(module);
+    resolveReferences(module);
 }
