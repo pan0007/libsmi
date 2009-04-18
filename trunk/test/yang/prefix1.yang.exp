@@ -1,3 +1,2 @@
-imported1.yang:12: identifier 'foo' is already defined within the namespace
 prefix1.yang:17: prefix 'pr1' is duplicated within the module
 prefix1.yang:21: prefix 'pr2' is duplicated within the module
