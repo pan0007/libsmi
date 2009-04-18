@@ -47,6 +47,7 @@ typedef enum YangBuiltInTypes {
 
 typedef struct _YangNode {
     YangNode            export;
+    int                 isOriginal;
     void                *info;
     int                 line;
     struct _YangNode  	*firstChildPtr;
@@ -91,6 +92,10 @@ typedef struct _YangIdentifierRefInfo {
     _YangNode   *resolvedNode;
     _YangNode   *met;
 } _YangIdentifierRefInfo;
+
+typedef struct _YangGroupingInfo {
+    _YangParsingState state;
+} _YangGroupingInfo;
 
 _YangNode *findYangModuleByName(const char *modulename);
 

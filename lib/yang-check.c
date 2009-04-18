@@ -240,6 +240,37 @@ int validateNodeUniqueness(_YangNode *nodePtr) {
     return 1;
 }
 
+void expandGroupings(_YangNode *node) {
+    YangDecl nodeKind = node->export.nodeKind;
+    if (nodeKind == YANG_DECL_GROUPING) {
+        if (node->info) {
+            _YangGroupingInfo *info = (_YangGroupingInfo*)node->info;
+            if (info->state == YANG_PARSING_IN_PROGRESS) {
+                smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, node->line, node->export.value);
+            }
+            return;
+        }
+        _YangGroupingInfo *info = smiMalloc(sizeof(_YangGroupingInfo));
+        info->state = YANG_PARSING_IN_PROGRESS;
+        node->info = info;
+    }
+    if (nodeKind == YANG_DECL_USES) {
+        _YangIdentifierRefInfo* info = (_YangIdentifierRefInfo*)node->info;
+        if (info->resolvedNode) {
+            expandGroupings(info->resolvedNode);
+        }
+    }
+    
+    _YangNode *child = node->firstChildPtr;
+    while (child) {
+        expandGroupings(child);
+        child = child->nextSiblingPtr;
+    }
+    if (nodeKind == YANG_DECL_GROUPING) {
+        ((_YangGroupingInfo*)node->info)->state = YANG_PARSING_DONE;
+    }
+}
+
 /*
  * Verifies that all identifiers are unique within all namespaces
  */
@@ -284,7 +315,6 @@ void resolveReferences(_YangNode* node) {
                 }
                 identifierRef->resolvedNode = reference;
                 identifierRef->met = node;
-
                 
                 if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
                     /* check the argument */
@@ -336,6 +366,7 @@ void resolveReferences(_YangNode* node) {
 
 void semanticAnalysis(_YangNode *module) {   
     initMap();
-    uniqueNames(module);
     resolveReferences(module);
+    expandGroupings(module);
+    uniqueNames(module);
 }

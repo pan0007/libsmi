@@ -126,13 +126,32 @@ YangNode* yangGetModule(char *modulename) {
 }
 
 YangNode *yangGetFirstChildNode(YangNode *yangNodePtr) {
-    _YangNode *nodePtr = (_YangNode *)yangNodePtr;    
-    return &(nodePtr->firstChildPtr->export);
+    _YangNode *nodePtr = (_YangNode *)yangNodePtr;
+    if (!nodePtr) return NULL;
+    nodePtr = nodePtr->firstChildPtr;
+    
+    while (nodePtr && !nodePtr->isOriginal) {
+        nodePtr = nodePtr->nextSiblingPtr;
+    }
+    if (!nodePtr) {
+        return NULL;
+    } else {
+        return &(nodePtr->export);
+    }
 }
 
 YangNode *yangGetNextSibling(YangNode *yangNodePtr) {
     _YangNode *nodePtr = (_YangNode *)yangNodePtr;
-    return &(nodePtr->nextSiblingPtr->export);
+    if (!nodePtr) return NULL;
+    nodePtr = nodePtr->nextSiblingPtr;
+    while (nodePtr && !nodePtr->isOriginal) {
+        nodePtr = nodePtr->nextSiblingPtr;
+    }
+    if (!nodePtr) {
+        return NULL;
+    } else {
+        return &(nodePtr->export);
+    }
 }
 
 YangNode *yangGetFirstModule(void) {
@@ -141,7 +160,11 @@ YangNode *yangGetFirstModule(void) {
 
 YangNode *yangGetNextModule(YangNode *yangModulePtr) {
     _YangNode *nodePtr = (_YangNode *)yangModulePtr;
-    return &(nodePtr->export);    
+    if (nodePtr->nextSiblingPtr) {
+        return &(nodePtr->nextSiblingPtr->export);    
+    } else {
+        return NULL;
+    }
 }
 
 int yangIsTrueConf(YangConfig conf) {
