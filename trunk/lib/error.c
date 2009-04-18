@@ -740,6 +740,8 @@ static Error errors[] = {
       "prefix '%s' is duplicated within the module", NULL},
     { 2, ERR_DUPLICATED_IDENTIFIER, "duplicated-identifier", 
       "identifier '%s' is already defined within the namespace", NULL},
+    { 2, ERR_DUPLICATED_GROUPING, "duplicated-grouping", 
+      "grouping instantiotion causes duplication of identifier '%s'", NULL},      
     { 2, ERR_SUBMODULE_DUPLICATED_IDENTIFIER, "submodule-duplicated-identifier", 
       "identifier '%s' is already defined within submodule '%s'", NULL},
     { 2, ERR_REFERENCE_NOT_RESOLVED, "reference-not-resolved", 

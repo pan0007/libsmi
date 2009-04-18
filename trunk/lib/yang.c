@@ -26,6 +26,8 @@
 #include <pwd.h>
 #endif
 
+#define ONLY_ORIGINAL 0
+        
 #include "yang.h"
 #include "error.h"
 #include "util.h"
@@ -129,9 +131,11 @@ YangNode *yangGetFirstChildNode(YangNode *yangNodePtr) {
     _YangNode *nodePtr = (_YangNode *)yangNodePtr;
     if (!nodePtr) return NULL;
     nodePtr = nodePtr->firstChildPtr;
-    
-    while (nodePtr && !nodePtr->isOriginal) {
-        nodePtr = nodePtr->nextSiblingPtr;
+
+    if (ONLY_ORIGINAL) {
+        while (nodePtr && !nodePtr->isOriginal) {
+            nodePtr = nodePtr->nextSiblingPtr;
+        }
     }
     if (!nodePtr) {
         return NULL;
@@ -144,8 +148,10 @@ YangNode *yangGetNextSibling(YangNode *yangNodePtr) {
     _YangNode *nodePtr = (_YangNode *)yangNodePtr;
     if (!nodePtr) return NULL;
     nodePtr = nodePtr->nextSiblingPtr;
-    while (nodePtr && !nodePtr->isOriginal) {
-        nodePtr = nodePtr->nextSiblingPtr;
+    if (ONLY_ORIGINAL) {
+        while (nodePtr && !nodePtr->isOriginal) {
+            nodePtr = nodePtr->nextSiblingPtr;
+        }
     }
     if (!nodePtr) {
         return NULL;

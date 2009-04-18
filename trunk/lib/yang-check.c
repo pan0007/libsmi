@@ -240,15 +240,68 @@ int validateNodeUniqueness(_YangNode *nodePtr) {
     return 1;
 }
 
-void expandGroupings(_YangNode *node) {
+_YangNode *createReferenceNode(_YangNode *parentPtr, _YangNode *reference)
+{
+	_YangNode *node = (_YangNode*) smiMalloc(sizeof(_YangNode));
+    node->isOriginal            = 0;
+	node->export.value          = reference->export.value;
+	node->export.nodeKind       = reference->export.nodeKind;
+    node->export.description	= NULL;
+    node->export.reference		= NULL;
+    node->export.extra  		= reference->export.extra;
+    node->info                  = NULL;    
+    
+    node->nextSiblingPtr        = NULL;
+    node->firstChildPtr         = NULL;
+    node->lastChildPtr          = NULL;
+    node->parentPtr             = parentPtr;
+    node->modulePtr             = parentPtr->modulePtr;
+    
+    if(parentPtr->lastChildPtr)
+    {
+        (parentPtr->lastChildPtr)->nextSiblingPtr = node;
+        parentPtr->lastChildPtr = node;
+    }
+    else //first child
+    {
+        parentPtr->firstChildPtr = node;
+        parentPtr->lastChildPtr = node;
+    }    
+    return node;
+}
+
+int isDataDefinitionNode(_YangNode *node) {
+    if (!node) return;
+    YangDecl kind = node->export.nodeKind;
+    return (kind == YANG_DECL_CONTAINER ||
+            kind == YANG_DECL_LEAF ||
+            kind == YANG_DECL_LEAF_LIST ||
+            kind == YANG_DECL_LIST || 
+            kind == YANG_DECL_CHOICE || 
+            kind == YANG_DECL_ANYXML ||
+            kind == YANG_DECL_USES);
+}
+
+void copySubtree(_YangNode *destPtr, _YangNode *subtreePtr) {
+    _YangNode *reference = createReferenceNode(destPtr, subtreePtr);
+    _YangNode* childPtr = subtreePtr->firstChildPtr;
+    while (childPtr) {
+        copySubtree(reference, childPtr);
+        childPtr = childPtr->nextSiblingPtr;
+    }
+}
+
+int expandGroupings(_YangNode *node) {
+    if (!node || !node->isOriginal) return;
     YangDecl nodeKind = node->export.nodeKind;
     if (nodeKind == YANG_DECL_GROUPING) {
         if (node->info) {
             _YangGroupingInfo *info = (_YangGroupingInfo*)node->info;
             if (info->state == YANG_PARSING_IN_PROGRESS) {
-                smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, node->line, node->export.value);
+                smiPrintErrorAtLine(currentParser, ERR_CYCLIC_REFERENCE_CHAIN, node->line, node->export.value);
+                return 0;
             }
-            return;
+            return 1;
         }
         _YangGroupingInfo *info = smiMalloc(sizeof(_YangGroupingInfo));
         info->state = YANG_PARSING_IN_PROGRESS;
@@ -257,18 +310,29 @@ void expandGroupings(_YangNode *node) {
     if (nodeKind == YANG_DECL_USES) {
         _YangIdentifierRefInfo* info = (_YangIdentifierRefInfo*)node->info;
         if (info->resolvedNode) {
-            expandGroupings(info->resolvedNode);
+            if (expandGroupings(info->resolvedNode)) {            
+                _YangNode *refChild = info->resolvedNode->firstChildPtr;
+                while (refChild) {
+                    if (isDataDefinitionNode(refChild)) {
+                        copySubtree(node->parentPtr, refChild);
+                    }
+                    refChild = refChild->nextSiblingPtr;
+                }
+            }
         }
     }
     
     _YangNode *child = node->firstChildPtr;
     while (child) {
-        expandGroupings(child);
+        if (child->isOriginal) {
+            expandGroupings(child);
+        }
         child = child->nextSiblingPtr;
     }
     if (nodeKind == YANG_DECL_GROUPING) {
         ((_YangGroupingInfo*)node->info)->state = YANG_PARSING_DONE;
     }
+    return 1;
 }
 
 /*
@@ -281,7 +345,11 @@ void uniqueNames(_YangNode* nodePtr) {
         YangIdentifierGroup yig = getIdentifierGroup(cur->export.nodeKind);
         if (yig > YANG_IDGR_NONE) {            
             if (!validateNodeUniqueness(cur)) {
-                smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
+                if (cur->line == 0) {
+                    smiPrintError(currentParser, ERR_DUPLICATED_GROUPING, cur->export.value);
+                } else {
+                    smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
+                }
             }
         }
         uniqueNames(cur);
@@ -350,8 +418,6 @@ void resolveReferences(_YangNode* node) {
                             }
                         }
                     }
-                } else if (nodeKind == YANG_DECL_TYPE) {
-                } else if (nodeKind == YANG_DECL_USES) {
                 }
                     
             }
