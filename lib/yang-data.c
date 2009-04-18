@@ -699,53 +699,56 @@ _YangNode *externalModule(_YangNode *importNode) {
  */
 void freeYangNode(_YangNode *nodePtr) {
     if (!nodePtr) return;
-    
-    smiFree(nodePtr->export.value);
-    nodePtr->export.value = NULL;
-    smiFree(nodePtr->export.extra);
-    nodePtr->export.extra = NULL;    
-    nodePtr->export.description = NULL;
-    nodePtr->export.reference = NULL;
-    YangDecl nodeKind = nodePtr->export.nodeKind;
-    
-    if (nodeKind == YANG_DECL_MODULE || nodeKind == YANG_DECL_SUBMODULE) {
-        _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
-        while (submodules) {
-            _YangNodeList *next = submodules->next;
-            smiFree(submodules);
-            submodules = next;
-        }
-        _YangImportList *imports = getModuleInfo(nodePtr)->imports;
-        while (imports) {
-            _YangImportList *next = imports->next;
-            smiFree(imports);
-            imports = next;
-        }        
-    }
-    
-    if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
-        nodeKind == YANG_DECL_IF_FEATURE ||
-        nodeKind == YANG_DECL_TYPE ||
-        nodeKind == YANG_DECL_USES || 
-        nodeKind == YANG_DECL_BASE) {
-            _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
-            if (info) {
-                smiFree(info->identifierName);
-                smiFree(info->prefix);
+
+    /* free only original node's memory, because references hold only pointers to other node's fields */
+    if (nodePtr->isOriginal) {
+        smiFree(nodePtr->export.value);
+        nodePtr->export.value = NULL;
+        smiFree(nodePtr->export.extra);
+        nodePtr->export.extra = NULL;    
+        nodePtr->export.description = NULL;
+        nodePtr->export.reference = NULL;
+        YangDecl nodeKind = nodePtr->export.nodeKind;
+
+        if (nodeKind == YANG_DECL_MODULE || nodeKind == YANG_DECL_SUBMODULE) {
+            _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
+            while (submodules) {
+                _YangNodeList *next = submodules->next;
+                smiFree(submodules);
+                submodules = next;
             }
+            _YangImportList *imports = getModuleInfo(nodePtr)->imports;
+            while (imports) {
+                _YangImportList *next = imports->next;
+                smiFree(imports);
+                imports = next;
+            }        
+        }
+
+        if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
+            nodeKind == YANG_DECL_IF_FEATURE ||
+            nodeKind == YANG_DECL_TYPE ||
+            nodeKind == YANG_DECL_USES || 
+            nodeKind == YANG_DECL_BASE) {
+                _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
+                if (info) {
+                    smiFree(info->identifierName);
+                    smiFree(info->prefix);
+                }
+        }
+
+
+        smiFree(nodePtr->info);
+        nodePtr->info = NULL;
     }
-        
-    
-    smiFree(nodePtr->info);
-    nodePtr->info = NULL;
-    
+
     _YangNode *currentNode= nodePtr->firstChildPtr, *nextNode;
     while (currentNode) {
         nextNode = currentNode->nextSiblingPtr;
         freeYangNode(currentNode);
         currentNode = nextNode;
     }
-     
+
     smiFree(nodePtr);
     nodePtr = NULL;
 }
