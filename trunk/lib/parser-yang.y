@@ -873,6 +873,7 @@ prefixStatement:	prefixKeyword prefix stmtEnd
                             smiPrintError(currentParser, ERR_REDEFINED_PREFIX, NULL);
                         break;
                     case YANG_DECL_BELONGS_TO:
+                        thisModuleInfoPtr->prefix = node->export.value;
                     case YANG_DECL_IMPORT:
                     
                         break;
@@ -1900,6 +1901,15 @@ refine: mustStatement
 
 augmentStatement: augmentKeyword string 
 		{
+            if (topDecl() == YANG_DECL_USES) {
+                if (!isDescendantSchemaNodeid($2)) {
+                    smiPrintError(thisParserPtr, ERR_DESCEDANT_FORM, $2);
+                }
+            } else {
+                if (!isAbsoluteSchemaNodeid($2)) {
+                    smiPrintError(thisParserPtr, ERR_ABSOLUTE_FORM, $2);
+                }
+            }
             node = addYangNode($2, YANG_DECL_AUGMENT, topNode());
             pushNode(node);
 		}
@@ -1908,6 +1918,19 @@ augmentStatement: augmentKeyword string
 			augmentSubstatement_0n
     	'}'
 		{
+            node = topNode()->firstChildPtr;
+            int count = 0;
+            while (node) {
+                if (node->export.nodeKind == YANG_DECL_CASE ||
+                    isDataDefNode(node)) {
+                        count++;
+                }
+                node = node->nextSiblingPtr;
+            }
+            if (count == 0) {
+                smiPrintError(thisParserPtr, ERR_DATADEF_NODE_REQUIRED, $2);
+            }
+
 			pop();
 		}
 		;

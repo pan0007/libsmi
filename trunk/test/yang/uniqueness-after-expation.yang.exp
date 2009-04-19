@@ -1,1 +1,2 @@
 uniqueness-after-expation.yang:20: grouping instantiotion causes duplication of identifier 'container1'
+uniqueness-after-expation.yang:0: identifier 'container1' is already defined within the namespace

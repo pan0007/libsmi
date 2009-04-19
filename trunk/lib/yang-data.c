@@ -42,6 +42,7 @@
 #include "util.h"
 #include "yang-data.h"
 #include "yang.h"
+#include "parser-yang.tab.h"
 
 #ifdef HAVE_DMALLOC_H
 #include <dmalloc.h>
@@ -392,7 +393,7 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr)
     return (infoPtr);
 }
 
-void createIdentifierRef(_YangNode *node, char* prefix, char* identifier) {
+void createIdentifierRef(_YangNode *node, char* prefix, char* ident) {
     _YangIdentifierRefInfo *infoPtr = smiMalloc(sizeof(_YangIdentifierRefInfo));
     
     if (prefix) {
@@ -400,7 +401,7 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* identifier) {
     } else {
         infoPtr->prefix = smiStrdup(getModuleInfo(node->modulePtr)->prefix);
     }
-    infoPtr->identifierName = identifier;
+    infoPtr->identifierName = ident;
     infoPtr->resolvedNode = NULL;
     infoPtr->met = NULL;
     
@@ -410,7 +411,7 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* identifier) {
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr)
 {
 	_YangNode *node = (_YangNode*) smiMalloc(sizeof(_YangNode));
-    node->isOriginal            = 1;
+    node->nodeType              = YANG_NODE_ORIGINAL;
 	node->export.value          = smiStrdup(value);
 	node->export.nodeKind       = nodeKind;
     node->export.description	= NULL;
@@ -701,7 +702,7 @@ void freeYangNode(_YangNode *nodePtr) {
     if (!nodePtr) return;
 
     /* free only original node's memory, because references hold only pointers to other node's fields */
-    if (nodePtr->isOriginal) {
+    if (nodePtr->nodeType == YANG_NODE_ORIGINAL) {
         smiFree(nodePtr->export.value);
         nodePtr->export.value = NULL;
         smiFree(nodePtr->export.extra);
@@ -772,3 +773,116 @@ void yangFreeData() {
     }    
 }
 
+int isDataDefNode(_YangNode* nodePtr) {
+    YangDecl kind = nodePtr->export.nodeKind;
+    return kind == YANG_DECL_CONTAINER ||
+           kind == YANG_DECL_LEAF ||
+           kind == YANG_DECL_LEAF_LIST ||
+           kind == YANG_DECL_LIST ||
+           kind == YANG_DECL_CHOICE ||
+           kind == YANG_DECL_ANYXML ||
+           kind == YANG_DECL_USES;
+    
+}
+
+ /*
+  * Schema Node Identifiers 
+  */
+
+int isAlpha(char ch) {
+    return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
+}
+
+int isDigit(char ch) {
+    return (ch >= '0' && ch <= '9');
+}
+
+int buildIdentifier(char *s) {
+    if (!s || strlen(s) == 0) return 0;
+    if (!isAlpha(s[0]) && s[0] != '_') return 0;
+    int ret = 1;
+    while (ret < strlen(s) && (isAlpha(s[ret]) || isDigit(s[ret]) || s[ret] == '_' || s[ret] == '-' || s[ret] == '.')) {
+        ret++;
+    }
+    return ret;
+}
+
+int nodeIdentifier(char* s) {
+    if (!s || strlen(s) == 0) return 0;
+    int ret = buildIdentifier(s);
+    if (!ret || ret == strlen(s)) return ret;
+    if (s[ret] == ':') {
+        int ret1 = buildIdentifier(s + ret + 1);
+        if (ret1) return ret + ret1 + 1;
+    }
+    return ret;
+}
+
+int absoluteSchemaNodeid(char *s) {
+    if (!s || strlen(s) == 0) return 0;
+    int ret = 0;    
+    while (ret < strlen(s)) {
+        if (s[ret] != '/') return ret;        
+        int cur = nodeIdentifier(s + ret + 1);
+        if (cur > 0) {
+            ret += cur + 1;
+        } else {
+            return ret;
+        }       
+    }
+    return ret;
+}
+
+int descendantSchemaNodeid(char *s) {
+    if (!s || strlen(s) == 0) return 0;
+    int ret = nodeIdentifier(s);
+    if (!ret) return 0;
+    return ret + absoluteSchemaNodeid(s + ret);
+}
+
+int isAbsoluteSchemaNodeid(char *s) {
+    if (!s || strlen(s) == 0) return 0;
+    return (absoluteSchemaNodeid(s) == strlen(s));
+}
+
+int isDescendantSchemaNodeid(char *s) {
+    if (!s || strlen(s) == 0) return 0;
+    return (descendantSchemaNodeid(s) == strlen(s));
+}
+
+_YangXPathList *getXPathNode(char* s) {
+    int i = 0;
+    _YangXPathList *ret = NULL, *prev = NULL;
+    if (s[0] == '/') i = 1;
+    
+    while (i < strlen(s)) {
+        int i1 = buildIdentifier(s + i);
+        int i2 = 0;
+        _YangXPathList *cur = smiMalloc(sizeof(_YangXPathList));
+        cur->next = NULL;
+        cur->prefix = NULL;
+        if (s[i + i1] == ':') {
+            i2 = buildIdentifier(s + i + i1 + 1);
+            cur->prefix = smiStrndup(s + i, i1);
+            cur->ident  = smiStrndup(s + i + i1 + 1, i2);
+            i2 += 1;
+        } else {
+            cur->ident  = smiStrndup(s + i, i1);
+        }
+        i += i1 + i2 + 1;
+        
+        if (ret == NULL) {
+            ret = cur;
+            prev = cur;
+        } else {
+            prev->next = cur;
+            prev = cur;
+        }
+/*        if (cur->prefix) {
+            printf("%s %s\n", cur->ident, cur->prefix);
+        } else {
+            printf("%s\n", cur->ident);
+        }*/
+    }
+    return ret;    
+}

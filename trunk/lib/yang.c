@@ -133,7 +133,7 @@ YangNode *yangGetFirstChildNode(YangNode *yangNodePtr) {
     nodePtr = nodePtr->firstChildPtr;
 
     if (ONLY_ORIGINAL) {
-        while (nodePtr && !nodePtr->isOriginal) {
+        while (nodePtr && nodePtr->nodeType != YANG_NODE_ORIGINAL) {
             nodePtr = nodePtr->nextSiblingPtr;
         }
     }
@@ -149,7 +149,7 @@ YangNode *yangGetNextSibling(YangNode *yangNodePtr) {
     if (!nodePtr) return NULL;
     nodePtr = nodePtr->nextSiblingPtr;
     if (ONLY_ORIGINAL) {
-        while (nodePtr && !nodePtr->isOriginal) {
+        while (nodePtr && nodePtr->nodeType != YANG_NODE_ORIGINAL) {
             nodePtr = nodePtr->nextSiblingPtr;
         }
     }

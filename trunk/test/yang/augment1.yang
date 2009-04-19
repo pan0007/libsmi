@@ -23,7 +23,7 @@
 
 	augment "/au:interfaces/au:ifEntry" {
 		when "au:ifType='ds0'";
-		leaf ds0ChannelNumber {
+		leaf ifType1 {
 			type int8;
 		}
 	}
