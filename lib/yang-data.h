@@ -45,9 +45,16 @@ typedef enum YangBuiltInTypes {
     YANG_TYPE_UNION                 = 19
 } YangBuiltInTypes;
 
+typedef enum YangNodeType {
+    YANG_NODE_ORIGINAL          = 0,
+    YANG_NODE_EXPANDED_USES     = 1,
+    YANG_NODE_EXPANDED_AUGMENT  = 2    
+} YangNodeType;
+
+
 typedef struct _YangNode {
     YangNode            export;
-    int                 isOriginal;
+    YangNodeType        nodeType;
     void                *info;
     int                 line;
     struct _YangNode  	*firstChildPtr;
@@ -57,10 +64,19 @@ typedef struct _YangNode {
     struct _YangNode  	*modulePtr;
 } _YangNode;
 
+
+
 typedef struct _YangNodeList {
     struct _YangNode  	*nodePtr;
     struct _YangNodeList *next;
 } _YangNodeList;
+
+typedef struct _YangXPathList {
+   char* prefix;
+   char* ident;
+   struct _YangXPathList    *next;
+    
+} _YangXPathList;
 
 typedef struct _YangImportList {
     char                *prefix;
@@ -103,6 +119,8 @@ _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPt
 
 _YangModuleInfo *createModuleInfo(_YangNode *modulePtr);
 
+_YangNode *findYangModuleByPrefix(_YangNode *module, const char *prefix);
+
 _YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind);
 
 _YangNode* findChildNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value);
@@ -142,10 +160,23 @@ void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
 void presenceNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
 
 int getCardinality(_YangNode *nodePtr, YangDecl nodeKind);
+
+
+int isDataDefNode(_YangNode* nodePtr);
+/*
+ *  XPath
+ */
+int isAbsoluteSchemaNodeid(char *s);
+
+int isDescendantSchemaNodeid(char *s);
+
+_YangXPathList *getXPathNode(char* s);
 /*
  *  Free YANG datastructures
  */
 void yangFreeData();
+
+_YangModuleInfo* getModuleInfo(_YangNode* module);
 
 #endif /* _YANG_DATA_H */
 
