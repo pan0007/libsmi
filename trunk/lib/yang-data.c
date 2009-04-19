@@ -408,6 +408,13 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* ident) {
     node->info = infoPtr;   
 }
 
+_YangTypeInfo createTypeInfo(_YangNode *node) {
+    _YangTypeInfo *infoPtr = smiMalloc(sizeof(_YangTypeInfo));
+    
+    infoPtr->baseTypeNodePtr    = NULL;
+    node->typeInfo              = infoPtr;   
+}
+
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr)
 {
 	_YangNode *node = (_YangNode*) smiMalloc(sizeof(_YangNode));
@@ -422,6 +429,7 @@ _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPt
     node->line                  = currentParser->line;
     
     node->info                  = NULL;    
+    node->typeInfo              = NULL;
     
     node->nextSiblingPtr        = NULL;
     node->firstChildPtr         = NULL;
@@ -737,8 +745,11 @@ void freeYangNode(_YangNode *nodePtr) {
                     smiFree(info->prefix);
                 }
         }
-
-
+        
+        if (nodeKind == YANG_DECL_TYPE) {
+            smiFree(nodePtr->typeInfo);
+        }
+        
         smiFree(nodePtr->info);
         nodePtr->info = NULL;
     }

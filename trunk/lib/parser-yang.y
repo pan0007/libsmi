@@ -1070,9 +1070,8 @@ typedefSubstatement:
 typeStatement: typeKeyword identifierRef 
                {
                     node = addYangNode($2, YANG_DECL_TYPE, topNode());
-                    if (getBuiltInTypeName($2) != YANG_TYPE_NONE) {
-                        // TODO: built-in type
-                    } else {
+                    createTypeInfo(node);
+                    if (getBuiltInTypeName($2) == YANG_TYPE_NONE) {
                         createIdentifierRef(node, getPrefix($2), getIdentifier($2));
                     }
                     pushNode(node);

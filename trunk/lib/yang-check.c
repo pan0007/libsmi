@@ -252,6 +252,7 @@ _YangNode *createReferenceNode(_YangNode *parentPtr, _YangNode *reference, YangN
     node->export.reference		= NULL;
     node->export.extra  		= reference->export.extra;
     node->info                  = NULL;    
+    node->typeInfo              = NULL;
     
     node->nextSiblingPtr        = NULL;
     node->firstChildPtr         = NULL;
@@ -300,7 +301,7 @@ int expandGroupings(_YangNode *node) {
         if (node->info) {
             _YangGroupingInfo *info = (_YangGroupingInfo*)node->info;
             if (info->state == YANG_PARSING_IN_PROGRESS) {
-                smiPrintErrorAtLine(currentParser, ERR_CYCLIC_REFERENCE_CHAIN, node->line, node->export.value);
+                smiPrintErrorAtLine(currentParser, ERR_CYCLIC_REFERENCE_CHAIN, node->line, yandDeclKeyword[node->export.nodeKind], node->export.value);
                 return 0;
             }
             return 1;
@@ -386,6 +387,10 @@ void resolveReferences(_YangNode* node) {
                 }
                 identifierRef->resolvedNode = reference;
                 identifierRef->met = node;
+                /* store a base type */
+                if (nodeKind == YANG_DECL_TYPE) {
+                    node->typeInfo->baseTypeNodePtr = reference;
+                }
                 
                 if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT) {
                     /* check the argument */
@@ -395,24 +400,30 @@ void resolveReferences(_YangNode* node) {
                     } else if (!argument && node->export.extra) {
                         smiPrintErrorAtLine(currentParser, ERR_UNEXPECTED_EXTENSION_ARGUMENT, node->line, node->export.value);
                     }
-                } else if (nodeKind == YANG_DECL_IF_FEATURE || nodeKind == YANG_DECL_BASE) {
+                } else if (nodeKind == YANG_DECL_IF_FEATURE || nodeKind == YANG_DECL_BASE || nodeKind == YANG_DECL_TYPE) {
                     /* check whether there is no cyclic reference */
                     if (node->parentPtr->export.nodeKind == map[nodeKind]) {
                         _YangNode *cur = identifierRef->resolvedNode;
                         while (cur) {
                             _YangNode *childRef = findChildNodeByType(cur, nodeKind);
-                            if (childRef) {
+                            /* Skip basic types, they don't have info */
+                            if (childRef && childRef->info) {
                                 _YangIdentifierRefInfo* info = ((_YangIdentifierRefInfo*)childRef->info);
                                 if (!info->resolvedNode) {
                                         info->resolvedNode = resolveReference(node->parentPtr, map[nodeKind], identifierRef->prefix, identifierRef->identifierName);
                                         if (!info->resolvedNode) {
                                             smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, childRef->line, info->prefix, info->identifierName);
                                         }
+                                        /* store a base type */
+                                        if (nodeKind == YANG_DECL_TYPE) {
+                                            node->typeInfo->baseTypeNodePtr = info->resolvedNode;
+                                        }
+                                        
                                         info->met = node;
                                         cur = info->resolvedNode;
                                 } else {
                                     if (info->met == node) {
-                                        smiPrintErrorAtLine(currentParser, ERR_CYCLIC_REFERENCE_CHAIN, info->resolvedNode->line, info->resolvedNode->export.value);
+                                        smiPrintErrorAtLine(currentParser, ERR_CYCLIC_REFERENCE_CHAIN, info->resolvedNode->line, yandDeclKeyword[map[nodeKind]], info->resolvedNode->export.value);
                                     }
                                     break;
                                 }                                     

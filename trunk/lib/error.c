@@ -755,7 +755,7 @@ static Error errors[] = {
     { 2, ERR_ILLEGAL_TYPE_NAME, "illegal-type-name", 
       "illegal type name '%s', must be not one of the YANG built-in types.", NULL},
     { 2, ERR_CYCLIC_REFERENCE_CHAIN, "cyclic-reference-chain", 
-      "circular dependency for identifier '%s'", NULL},
+      "circular dependency for %s identifier '%s'", NULL},
     { 2, ERR_DESCEDANT_FORM, "descedant-form", 
       "schema node identifier '%s' must be in the descedant form", NULL},
     { 2, ERR_ABSOLUTE_FORM, "absolute-form", 
