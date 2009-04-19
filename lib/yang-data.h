@@ -51,20 +51,22 @@ typedef enum YangNodeType {
     YANG_NODE_EXPANDED_AUGMENT  = 2    
 } YangNodeType;
 
+typedef struct _YangTypeInfo {
+    struct _YangNode   *baseTypeNodePtr;
+} _YangTypeInfo;
 
 typedef struct _YangNode {
     YangNode            export;
     YangNodeType        nodeType;
     void                *info;
-    int                 line;
+        int             line;
+    struct _YangTypeInfo *typeInfo;
     struct _YangNode  	*firstChildPtr;
     struct _YangNode  	*lastChildPtr;    
     struct _YangNode  	*nextSiblingPtr;
     struct _YangNode  	*parentPtr;
     struct _YangNode  	*modulePtr;
 } _YangNode;
-
-
 
 typedef struct _YangNodeList {
     struct _YangNode  	*nodePtr;
@@ -118,6 +120,8 @@ _YangNode *findYangModuleByName(const char *modulename);
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr);
 
 _YangModuleInfo *createModuleInfo(_YangNode *modulePtr);
+
+_YangTypeInfo createTypeInfo(_YangNode *node);
 
 _YangNode *findYangModuleByPrefix(_YangNode *module, const char *prefix);
 
