@@ -1244,6 +1244,9 @@ bitsSubstatement:   positionStatement
 
 positionStatement: positionKeyword string stmtEnd 
                 {
+                    if (!isNonNegativeInteger($2)) {                            
+                        smiPrintError(currentParser, ERR_ARG_VALUE, $2, "non-negative-integer");
+                    }
                     uniqueNodeKind(topNode(), YANG_DECL_POSITION);
                     node = addYangNode($2, YANG_DECL_POSITION, topNode());
                 }
@@ -1544,7 +1547,7 @@ ordered_byStatement: 	ordered_byKeyword string stmtEnd
                     {
                         if (!strcmp($2, "user") || !strcmp($2, "system")) {
                         } else {
-                            smiPrintError(thisParserPtr, ERR_IVALID_ORDERED_BY_VALUE, $2);
+                            smiPrintError(thisParserPtr, ERR_IVALIDE_ORDERED_BY_VALUE, $2);
                         }
                         uniqueNodeKind(topNode(), YANG_DECL_ORDERED_BY);
                         node = addYangNode($2, YANG_DECL_ORDERED_BY, topNode());

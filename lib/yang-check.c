@@ -35,6 +35,7 @@
 #include "yang-check.h"
 #include "parser-smi.tab.h"
 #include "parser-yang.tab.h"
+#include "yang-data.h"
 
 
 #define SMI_EPOCH	631152000	/* 01 Jan 1990 00:00:00 */ 
@@ -728,12 +729,65 @@ void validateLists(_YangNode *nodePtr) {
     }    
 }
 
+void validateDefaultStatements(_YangNode *nodePtr) {
+    YangDecl nodeKind = nodePtr->export.nodeKind;
+    if (nodeKind == YANG_DECL_DEFAULT) {
+        YangDecl parentKind = nodePtr->parentPtr->export.nodeKind;
+        if (parentKind == YANG_DECL_CHOICE || parentKind == YANG_DECL_LEAF) {
+            /* The "default" statement of the leaf and choice MUST NOT be present where "mandatory" is true. */
+            _YangNode* mandatory = findChildNodeByType(nodePtr->parentPtr, YANG_DECL_MANDATORY);
+            if (mandatory && !strcmp(mandatory->export.value, "true")) {
+                smiPrintErrorAtLine(currentParser, ERR_IVALIDE_DEFAULT, nodePtr->line);
+            }
+        }
+        
+        /*
+         * The argument of the choice is the identifier of the "case" statement.
+         * There MUST NOT be any mandatory nodes directly under the default case. 
+         */
+        if (parentKind == YANG_DECL_CHOICE) {
+            _YangNode *defaultCase = findChildNodeByTypeAndValue(nodePtr->parentPtr, YANG_DECL_CASE, nodePtr->export.value);
+            if (!defaultCase) {
+                smiPrintErrorAtLine(currentParser, ERR_IVALIDE_DEFAULT_CASE, nodePtr->line, nodePtr->export.value);
+            } else {
+               /* Mandatory nodes:
+                * 1. A leaf or choice node with a "mandatory" statement with the value "true".
+                * 2. A list or leaf-list node with a "min-elements" statement with a value greater than zero.
+                * 3. A container node without a "presence" statement.
+                */                
+                _YangNode *childPtr = NULL;
+                _YangNode *mandatory = NULL;
+                for (childPtr = defaultCase->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+                    mandatory = findChildNodeByTypeAndValue(childPtr, YANG_DECL_MANDATORY, "true");
+                    if (!mandatory) {
+                        mandatory = findChildNodeByType(childPtr, YANG_DECL_PRESENCE);
+                    }
+                    if (!mandatory) {
+                        mandatory = findChildNodeByType(childPtr, YANG_DECL_MIN_ELEMENTS);
+                        if (mandatory->export.value[0] == '0') {
+                            mandatory = NULL;
+                        }
+                    }
+                    if (mandatory) break;                   
+                }        
+                smiPrintErrorAtLine(currentParser, ERR_MANDATORY_NODE_UNDER_DEFAULT_CASE, nodePtr->line, defaultCase->export.value, nodePtr->parentPtr->export.value);
+            }
+        }
+    }
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        validateDefaultStatements(childPtr);
+    }        
+}
+
 void semanticAnalysis(_YangNode *module) {
     initMap();
     resolveReferences(module);
     expandGroupings(module);
     extendAugments(module);
     validateConfigProperties(module, 1);
+    
+    validateDefaultStatements(module);
 
     validateLists(module);
     uniqueNames(module);
