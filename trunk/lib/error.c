@@ -720,8 +720,6 @@ static Error errors[] = {
       "contact has been already defined", NULL},     
     { 2, ERR_REDEFINED_ELEMENT, "element-redefined", 
       "%s has been already defined", NULL},      
-    { 2, ERR_INVALID_CONFIG_VALUE, "invalid-config-value", 
-      "wrong config value", NULL},
     { 2, ERR_CYCLIC_IMPORTS, "cyclic-imports-value", 
       "circular dependency between modules '%s' and '%s'", NULL},
     { 2, ERR_SUBMODULE_BELONGS_TO_ANOTHER_MODULE, "invalid-belongs-to", 
@@ -768,6 +766,8 @@ static Error errors[] = {
       "augment '%s' requires at least one data definition or case node", NULL},
     { 2, ERR_NODE_KIND_NOT_ALLOWED, "node-kind-not-allowed", 
       "%s '%s' is not allowed as a child node of the target %s '%s'", NULL},
+    { 2, ERR_INVALID_CONFIG, "invalid-config", 
+      "config true cannot be set for node '%s' when the parent node has config false", NULL},      
     { 0, 0, NULL, NULL, NULL }
 };
 

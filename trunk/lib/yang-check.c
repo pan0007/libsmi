@@ -294,6 +294,15 @@ void copySubtree(_YangNode *destPtr, _YangNode *subtreePtr, YangNodeType nodeTyp
     }
 }
 
+/*
+ * From the specification:
+ *  1. The effect of a "uses" reference to a grouping is that the nodes defined by the grouping 
+ *      are copied into the current schema tree and then updated according to the refinement statements. 
+ *
+ *  2. Once a grouping is defined, it can be referenced in a "uses"  statement (see Section 7.12).  
+ *      A grouping MUST NOT reference itself,   neither directly nor indirectly through a chain of other groupings. 
+
+ */
 int expandGroupings(_YangNode *node) {
     if (!node || node->nodeType != YANG_NODE_ORIGINAL) return;
     YangDecl nodeKind = node->export.nodeKind;
@@ -371,6 +380,10 @@ void initMap() {
     map[YANG_DECL_BASE] = YANG_DECL_IDENTITY;
 }
 
+ /* 
+  *  Resolves references to extensions, features, defined types, groupings and identities.
+  *  Validates whether or not threre are circular dependencies between these nodes.
+  */  
 void resolveReferences(_YangNode* node) {
     YangDecl nodeKind = node->export.nodeKind;
     if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
@@ -500,6 +513,9 @@ _YangNode* findTargetNode(_YangNode *nodePtr, char* value) {
     return NULL;
 }
 
+/*
+ *  Resolves a node in the current or imported module by an XPath expression.
+ */
 _YangNode *resolveXPath(_YangNode *nodePtr) {
     _YangXPathList *listPtr = getXPathNode(nodePtr->export.value), *tmp;
     if (!listPtr) return NULL;
@@ -563,6 +579,9 @@ _YangNode *resolveXPath(_YangNode *nodePtr) {
     return cur;
 }
 
+/*
+ * Expands all augment statements.
+ */
 void extendAugments(_YangNode* node) {
     _YangNode *child = node->firstChildPtr;
     while (child) {
@@ -610,10 +629,31 @@ void extendAugments(_YangNode* node) {
     }    
 }
 
+/*
+ *  From the specification:
+ *  If a node has "config" "false", no node underneath it can have "config" set to "true".
+ */
+void validateConfigParameters(_YangNode *nodePtr, int isConfigTrue) {
+    if (!isConfigTrue) {
+        if (nodePtr->export.config == YANG_CONFIG_TRUE) {
+            smiPrintErrorAtLine(currentParser, ERR_INVALID_CONFIG, nodePtr->line, nodePtr->export.value);
+            nodePtr->export.config = YANG_CONFIG_DEFAULT_FALSE;
+        }
+        if (nodePtr->export.config == YANG_CONFIG_DEFAULT_TRUE) {
+            nodePtr->export.config = YANG_CONFIG_DEFAULT_FALSE;
+        }
+    }
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        validateConfigParameters(childPtr, yangIsTrueConf(nodePtr->export.config));
+    }
+}
+
 void semanticAnalysis(_YangNode *module) {
     initMap();
     resolveReferences(module);
     expandGroupings(module);
     extendAugments(module);
+    validateConfigParameters(module, 1);
     uniqueNames(module);
 }

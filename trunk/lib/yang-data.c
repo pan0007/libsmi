@@ -92,11 +92,7 @@ YangBuiltInTypes getBuiltInTypeName(char *name) {
  */
 void setConfig(_YangNode *nodePtr, YangConfig config)
 {
-    if (config == YANG_CONFIG_TRUE && nodePtr->export.config == YANG_CONFIG_DEFAULT_FALSE) {
-        smiPrintError(currentParser, ERR_INVALID_CONFIG_VALUE);
-    } else {
-        nodePtr->export.config = config;
-    }
+    nodePtr->export.config = config;
 }
 
 void setStatus(_YangNode *nodePtr, YangStatus status)
