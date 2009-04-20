@@ -1536,6 +1536,10 @@ min_elementsStatement: 	min_elementsKeyword string stmtEnd
 
 ordered_byStatement: 	ordered_byKeyword string stmtEnd
                     {
+                        if (!strcmp($2, "user") || !strcmp($2, "system")) {
+                        } else {
+                            smiPrintError(thisParserPtr, ERR_IVALID_ORDERED_BY_VALUE, $2);
+                        }
                         uniqueNodeKind(topNode(), YANG_DECL_ORDERED_BY);
                         node = addYangNode($2, YANG_DECL_ORDERED_BY, topNode());
                     }
