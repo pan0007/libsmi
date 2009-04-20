@@ -34,6 +34,7 @@
 #include "yang-data.h"
 #include "yang-check.h"
 #include "parser-smi.tab.h"
+#include "parser-yang.tab.h"
 
 
 #define SMI_EPOCH	631152000	/* 01 Jan 1990 00:00:00 */ 
@@ -682,6 +683,7 @@ void validateLists(_YangNode *nodePtr) {
         while (childPtr) {            
             if (childPtr->export.nodeKind == YANG_DECL_UNIQUE) {
                 _YangList* l = (_YangList*)childPtr->info;
+                int configNodeCount = 0, stateNodeCount = 0;
                 while (l) {                    
                     _YangIdentifierList* il = (_YangIdentifierList*)l->data;
                     _YangNode* cur = nodePtr;
@@ -700,8 +702,21 @@ void validateLists(_YangNode *nodePtr) {
                     if (cur && cur->export.nodeKind != YANG_DECL_LEAF) {
                         smiPrintErrorAtLine(currentParser, ERR_INVALIDE_UNIQUE_REFERENCE, childPtr->line, l->additionalInfo);
                         break;
-                    }
+                    } else if (cur) {
+                        if (yangIsTrueConf(cur->export.config)) {
+                            configNodeCount++;
+                        } else {
+                            stateNodeCount++;
+                        }
+                    }                    
                     l = l->next;
+                }
+                /*
+                 *  If one of the referenced leafs represents configuration data, 
+                 *  then all of the referenced leafs MUST represent configuration data.
+                 */                
+                if (configNodeCount && stateNodeCount) {
+                    smiPrintErrorAtLine(currentParser, ERR_MUST_BE_CONFIG, childPtr->line);
                 }
             }
             childPtr = childPtr->nextSiblingPtr;

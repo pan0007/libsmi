@@ -4,14 +4,14 @@
 
     container c {
 		list interface {
-			 config false;
-
+             key name;
              unique "l:test/name1 test/l:test2 c:name name";
 
              unique "name speed l:speed test/l:test1";
 
 			 container test {
 				 leaf name1 {
+                     config false;
 				     type string;
 				 }
                  container test1 {

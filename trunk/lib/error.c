@@ -784,7 +784,8 @@ static Error errors[] = {
       "the unique element '%s' does not reference an existing leaf", NULL},
     { 2, ERR_DUPLICATED_LEAF_IN_UNIQUE, "duplicated-key", 
       "the leaf '%s' occurs more than once in the unique expression", NULL},
-      
+    { 2, ERR_MUST_BE_CONFIG, "must-be-config", 
+      "one of the referenced by the unique statement leafs represents configuration data, so all of the referenced leafs MUST represent configuration data.", NULL},
     { 0, 0, NULL, NULL, NULL }
 };
 

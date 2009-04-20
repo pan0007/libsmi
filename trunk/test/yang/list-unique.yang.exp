@@ -1,4 +1,6 @@
-list-unique.yang:9: the unique element 'c:name' does not reference an existing leaf
-list-unique.yang:11: the leaf 'l:speed' occurs more than once in the unique expression
+list-unique.yang:8: the unique element 'c:name' does not reference an existing leaf
+list-unique.yang:10: the leaf 'l:speed' occurs more than once in the unique expression
+list-unique.yang:7: the type empty cannot be part of a key, used by leaf 'name'
 l:test2' does not reference an existing leaf
+list-unique.yang:8: one of the referenced by the unique statement leafs represents configuration data, so all of the referenced leafs MUST represent configuration data.
 l:test1' does not reference an existing leaf
