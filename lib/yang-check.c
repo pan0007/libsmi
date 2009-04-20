@@ -284,11 +284,22 @@ int isDataDefinitionNode(_YangNode *node) {
             kind == YANG_DECL_USES);
 }
 
-void copySubtree(_YangNode *destPtr, _YangNode *subtreePtr, YangNodeType nodeType) {
+int isMandatory(_YangNode *nodePtr) {
+    _YangNode *mandatory = findChildNodeByType(nodePtr, YANG_DECL_MANDATORY);
+    if (mandatory && !strcmp(mandatory->export.value, "true")) {
+        return 1;
+    }
+    return 0;
+}
+
+void copySubtree(_YangNode *destPtr, _YangNode *subtreePtr, YangNodeType nodeType, int skipMandatory) {
+    if (skipMandatory && isMandatory(subtreePtr)) {
+        smiPrintErrorAtLine(currentParser, ERR_AUGMENTATION_BY_MANDATORY_NODE, subtreePtr->line);
+    }
     _YangNode *reference = createReferenceNode(destPtr, subtreePtr, nodeType);
     _YangNode* childPtr = subtreePtr->firstChildPtr;
     while (childPtr) {
-        copySubtree(reference, childPtr, nodeType);
+        copySubtree(reference, childPtr, nodeType, skipMandatory);
         childPtr = childPtr->nextSiblingPtr;
     }
 }
@@ -325,7 +336,7 @@ int expandGroupings(_YangNode *node) {
                 _YangNode *refChild = info->resolvedNode->firstChildPtr;
                 while (refChild) {
                     if (isDataDefinitionNode(refChild)) {
-                        copySubtree(node->parentPtr, refChild, YANG_NODE_EXPANDED_USES);
+                        copySubtree(node->parentPtr, refChild, YANG_NODE_EXPANDED_USES, 0);
                     }
                     refChild = refChild->nextSiblingPtr;
                 }
@@ -594,6 +605,16 @@ void extendAugments(_YangNode* node) {
             }
             /* expand augment */
             _YangNode *child = node->firstChildPtr;
+            
+            /*  
+             *  From the specification:
+             *  If the target node of the “augment” is in another module, 
+             *  then nodes added by the augmentation MUST NOT be mandatory nodes. 
+             */
+            int isAnotherModule = 1;
+            if (!strcmp(getModuleInfo(targetNodePtr->modulePtr)->prefix, getModuleInfo(node->modulePtr)->prefix)) {
+                isAnotherModule = 0;
+            }
             while (child) {
                 /*
                  * If the target node is a container, list, case, input, output, or notification node, 
@@ -606,12 +627,12 @@ void extendAugments(_YangNode* node) {
                     if (targetNodePtr->export.nodeKind == YANG_DECL_CHOICE) {
                         smiPrintErrorAtLine(currentParser, ERR_NODE_KIND_NOT_ALLOWED, child->line, yandDeclKeyword[child->export.nodeKind], child->export.value, yandDeclKeyword[targetNodePtr->export.nodeKind], targetNodePtr->export.value);
                     }
-                    copySubtree(targetNodePtr, child, YANG_NODE_EXPANDED_AUGMENT);
+                    copySubtree(targetNodePtr, child, YANG_NODE_EXPANDED_AUGMENT, isAnotherModule);
                 } else if (child->export.nodeKind == YANG_DECL_CASE) {
                     if (targetNodePtr->export.nodeKind != YANG_DECL_CHOICE) {
                         smiPrintErrorAtLine(currentParser, ERR_NODE_KIND_NOT_ALLOWED, child->line, yandDeclKeyword[child->export.nodeKind], child->export.value, yandDeclKeyword[targetNodePtr->export.nodeKind], targetNodePtr->export.value);
                     }                    
-                    copySubtree(targetNodePtr, child, YANG_NODE_EXPANDED_AUGMENT);
+                    copySubtree(targetNodePtr, child, YANG_NODE_EXPANDED_AUGMENT, isAnotherModule);
                 }
                 child = child->nextSiblingPtr;
             }

@@ -795,7 +795,11 @@ static Error errors[] = {
     { 2, ERR_MANDATORY_NODE_UNDER_DEFAULT_CASE, "invalid-ordered-by-value", 
     "mandatory nodes are not allowed directly under the default case '%s' of the choice '%s'", NULL},    
     { 2, ERR_DATA_DEF_REQUIRED, "data-def-required", 
-    "the %s requires at least one data definition statement as a child", NULL},    
+    "the %s requires at least one data definition statement as a child", NULL},
+    { 2, ERR_AUGMENTATION_BY_MANDATORY_NODE, "augmentation-by-mandatory-node", 
+    "the target node of the augmentation is in another module, the nodes added by the augmentation MUST NOT be mandatory nodes.", NULL},    
+    
+
     { 0, 0, NULL, NULL, NULL }
 };
 
