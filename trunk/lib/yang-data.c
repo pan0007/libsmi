@@ -44,6 +44,7 @@
 #include "yang.h"
 #include "parser-yang.tab.h"
 #include "yang-check.h"
+#include "scanner-yang.h"
 
 #ifdef HAVE_DMALLOC_H
 #include <dmalloc.h>
@@ -691,6 +692,7 @@ _YangNode *externalModule(_YangNode *importNode) {
 }
 
 
+void freeUniqueList(_YangList* listPtr);
 /*
  *----------------------------------------------------------------------
  *
@@ -708,12 +710,6 @@ void freeYangNode(_YangNode *nodePtr) {
 
     /* free only original node's memory, because references hold only pointers to other node's fields */
     if (nodePtr->nodeType == YANG_NODE_ORIGINAL) {
-        smiFree(nodePtr->export.value);
-        nodePtr->export.value = NULL;
-        smiFree(nodePtr->export.extra);
-        nodePtr->export.extra = NULL;    
-        nodePtr->export.description = NULL;
-        nodePtr->export.reference = NULL;
         YangDecl nodeKind = nodePtr->export.nodeKind;
 
         if (nodeKind == YANG_DECL_MODULE || nodeKind == YANG_DECL_SUBMODULE) {
@@ -745,15 +741,25 @@ void freeYangNode(_YangNode *nodePtr) {
         
         if (nodeKind == YANG_DECL_TYPE) {
             smiFree(nodePtr->typeInfo);
-        }
-        
+        }        
         if (nodeKind == YANG_DECL_KEY) {
             freeIdentiferList(nodePtr->info);
+            nodePtr->info = NULL;
+        }
+        if (nodeKind == YANG_DECL_UNIQUE) {
+            freeUniqueList(nodePtr->info);
             nodePtr->info = NULL;
         }
         
         smiFree(nodePtr->info);
         nodePtr->info = NULL;
+       
+        smiFree(nodePtr->export.value);
+        nodePtr->export.value = NULL;
+        smiFree(nodePtr->export.extra);
+        nodePtr->export.extra = NULL;    
+        nodePtr->export.description = NULL;
+        nodePtr->export.reference = NULL;        
     }
 
     _YangNode *currentNode= nodePtr->firstChildPtr, *nextNode;
@@ -882,8 +888,9 @@ void freeIdentiferList(_YangIdentifierList *listPtr) {
             smiFree(tmp->prefix);
         }        
         smiFree(tmp);
-    }    
+    }
 }
+
 
 _YangIdentifierList *getXPathNode(char* s) {
     int i = 0;
@@ -968,7 +975,47 @@ _YangIdentifierList *getKeyList(char* s) {
         }
     }
     if (ret == NULL) {
-        smiPrintError(currentParser, ERR_KEY_ARG_VALUE, s);
+        smiPrintError(currentParser, ERR_ARG_VALUE, s, "key-arg");
+    }
+    return ret;    
+}
+
+
+_YangIdentifierList *getUniqueList(char* s) {
+    int i = 0;
+    _YangIdentifierList *ret = NULL, *item = NULL, *prev = NULL;
+    
+    while (i < strlen(s)) {
+        while (i != 0 && i < strlen(s) && isSeparator(s[i])) {
+            i++;
+        }
+        if (i < strlen(s)) {
+            int i1 = descendantSchemaNodeid(s + i);
+            if (i1) {
+                char* schemaNodeId = smiStrndup(s + i, i1);
+                i += i1;
+                _YangIdentifierList *cur = smiMalloc(sizeof(_YangIdentifierList));
+                cur->next = NULL;
+                cur->prefix = NULL;
+                cur->ident  = schemaNodeId;
+
+                if (ret == NULL) {
+                    ret = cur;
+                    prev = cur;
+                } else {
+                    prev->next = cur;
+                    prev = cur;
+                }
+            } else {
+                freeIdentiferList(ret);
+                ret = NULL;
+                break;                
+            }
+        } else {
+            freeIdentiferList(ret);
+            ret = NULL;
+            break;
+        }
     }
     /*if (!ret) {
         printf("(null)\n");
@@ -979,7 +1026,88 @@ _YangIdentifierList *getKeyList(char* s) {
             cur = cur->next;
         }
         printf("-----------------------------------\n");
-    }*/
-    return ret;    
+    }    */
+    if (ret == NULL) {
+        smiPrintError(currentParser, ERR_ARG_VALUE, s, "unique-arg");
+    }
+    return ret;
 }
-    
+
+_YangList *createListElement(_YangList *parent) {
+    _YangList *ret = smiMalloc(sizeof(_YangList));
+    ret->data           = NULL;
+    ret->additionalInfo = NULL;
+    ret->next           = NULL;
+    if (parent) {
+        parent->next = ret;        
+    }
+    return ret;
+}
+
+void freeList(_YangList* listPtr) {
+    while (listPtr) {
+        _YangList *tmp = listPtr;
+        listPtr = listPtr->next;
+        smiFree(tmp);
+    }    
+}
+
+void freeUniqueList(_YangList* listPtr) {
+    _YangList* tmp;
+    while (listPtr) {
+        _YangIdentifierList *il = (_YangIdentifierList*)listPtr->data;
+        freeIdentiferList(il);
+        smiFree(listPtr->additionalInfo);
+        listPtr = listPtr->next;
+    }   
+    freeList(tmp);
+}
+
+_YangList* processUniqueList(_YangNode *nodePtr, _YangIdentifierList* il) {
+    if (!il) return NULL;
+    _YangList* ret = NULL, *prev = NULL;
+    _YangIdentifierList* cur = il;    
+    while (cur) {
+        _YangIdentifierList* path = getXPathNode(cur->ident), *tmpPath = NULL;
+        /* validate prefixes */
+        tmpPath = path;
+        int isOk = 1;         
+        while (tmpPath) {
+            if (tmpPath->prefix && strcmp(tmpPath->prefix, getModuleInfo(nodePtr->modulePtr)->prefix)) break;
+            tmpPath = tmpPath->next;
+        }
+        if (tmpPath) {
+            smiPrintError(currentParser, ERR_INVALIDE_UNIQUE_REFERENCE, cur->ident);
+            isOk = 0;
+        }
+        /* validate whether we have already met a reference to the same leaf */
+        _YangList* tmp = prev;
+        while (tmp) {
+            tmpPath = path;
+            _YangIdentifierList *ilist = (_YangIdentifierList*)tmp->data;
+            while (ilist && tmpPath) {
+                if (strcmp(ilist->ident, tmpPath->ident)) break;
+                ilist = ilist->next;
+                tmpPath = tmpPath->next;
+            }
+            if (!ilist && !tmpPath) {
+                isOk = 0;
+                smiPrintError(currentParser, ERR_DUPLICATED_LEAF_IN_UNIQUE, cur->ident);
+                break;
+            }
+            tmp = tmp->next;
+        }
+        if (isOk) {
+            prev = createListElement(prev);
+            prev->data = path;
+            prev->additionalInfo = smiStrdup(cur->ident);
+            if (!ret) {
+                ret = prev;
+            }
+        } else {
+            freeIdentiferList(path);
+        }
+        cur =  cur->next;
+    }
+    return ret;
+}

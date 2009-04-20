@@ -1,0 +1,4 @@
+list-unique.yang:9: the unique element 'c:name' does not reference an existing leaf
+list-unique.yang:11: the leaf 'l:speed' occurs more than once in the unique expression
+l:test2' does not reference an existing leaf
+l:test1' does not reference an existing leaf
