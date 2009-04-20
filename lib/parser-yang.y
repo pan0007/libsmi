@@ -171,38 +171,6 @@ char* getIdentifier(char* identifierRef) {
 
 
 
-/*static Type *findType(char* spec)
-{
-	Type *typePtr = NULL;
-	Module *modulePtr;
-	char *prefix, *type;
-	YangNode* n = NULL;
-	
-	if(strstr(spec,":") != NULL)
-	{
-		prefix = strtok(spec, ":");
-		type = strtok(NULL , ":");
-		modulePtr = findImportedModuleByPrefix(currentModule, prefix);
-		if(modulePtr == NULL)
-		{
-			//TODO print unknow prefix error
-			return NULL;
-		}
-		n = findYangNodeByScopeAndName(modulePtr, type, NULL);
-	}
-	else
-	{
-		n = findYangNodeByScopeAndName(currentModule, spec, currentNode);
-	}
-	
-	if(n == NULL) return NULL;
-	if(n->export.nodeKind == YANG_DECL_TYPEDEF)
-	{
-		typePtr = n->type;
-	}
-        return typePtr;
-}*/
-
 /*static void
 checkTypes(Parser *parserPtr, Module *modulePtr)
 {
@@ -224,47 +192,6 @@ checkTypes(Parser *parserPtr, Module *modulePtr)
 	smiCheckNamedNumberRedefinition(parserPtr, typePtr);
 	smiCheckNamedNumberSubtyping(parserPtr, typePtr);
     }
-}*/
-
-/*
-void checkUniqueAndKey()
-{
-	YangNode *node;
-	YangNodeList *list;
-	for(list = currentNode->uniqueList; list; list = list->next)
-	{
-		for(node = currentNode->firstChildPtr; node; node = node->nextSiblingPtr)
-		{
-			if(!strcmp(list->name,node->export.name))
-			{
-				list->yangNode = node;
-				smiFree(list->name);
-				break;
-			}
-		}
-		if(!list->yangNode)
-			smiPrintError(currentParser,ERR_NO_SUCH_UNIQUE_LEAF,
-					      			list->name,currentNode->export.name);		
-	}
-	
-	
-	
-	for(list = currentNode->keyList; list; list = list->next)
-	{
-		for(node = currentNode->firstChildPtr; node; node = node->nextSiblingPtr)
-		{
-			if(!strcmp(list->name,node->export.name))
-			{
-				list->yangNode = node;
-				smiFree(list->name);
-				break;
-			}
-		}
-		if(!list->yangNode)
-			smiPrintError(currentParser,ERR_NO_SUCH_KEY_LEAF,
-					      			list->name,currentNode->export.name);		
-	}
-	return;
 }*/
 
 %}
@@ -780,7 +707,6 @@ organizationStatement:	organizationKeyword string stmtEnd
                 } else {
                     smiPrintError(currentParser, ERR_REDEFINED_ORGANIZATION, NULL);
                 }				
-                $$ = 1;
 			}
 	;
 
@@ -792,7 +718,6 @@ contactStatement:	contactKeyword string stmtEnd
                 } else {
                     smiPrintError(currentParser, ERR_REDEFINED_CONTACT, NULL);
                 }
-                $$ = 1;
 			}
 	;
 
@@ -801,7 +726,6 @@ descriptionStatement:	descriptionKeyword string stmtEnd
                 uniqueDescription(topNode());
                 setDescription(topNode(), $2);
                 node = addYangNode($2, YANG_DECL_DESCRIPTION, topNode());
-                $$ = 1;
 			}
 	;
 
@@ -810,7 +734,6 @@ referenceStatement:	referenceKeyword string stmtEnd
                 uniqueReference(topNode());
                 setReference(topNode(), $2);
                 node = addYangNode($2, YANG_DECL_REFERENCE, topNode());
-				$$ = 1;
 			}
 	;
 
@@ -819,7 +742,6 @@ statusStatement:	statusKeyword status stmtEnd
                 uniqueStatus(topNode());
                 setStatus(topNode(), $2);
                 node = addYangNode(statusKeywords[$2], YANG_DECL_STATUS, topNode());
-                $$ = 1;
 			}
 	;
 
@@ -1623,28 +1545,7 @@ keyStatement: keyKeyword string stmtEnd
 		{
             uniqueNodeKind(topNode(), YANG_DECL_KEY);
             node = addYangNode($2, YANG_DECL_KEY, topNode());
-/*			
-			char *beginWord = $2; //beginning or current word
-			int i = 0;
-			for(i; beginWord[i]; i++) //substitude tabs with spaces
-			{
-				if(beginWord[i]=='\t') beginWord[i]=' ';
-			}
-			
-			char *nextWord = strstr(beginWord," "); //location of next space
- 
-			while(nextWord)
-			{
-				nextWord[0] = '\0'; //change space for null so that duplication is to this position
-				list->name = smiStrdup(beginWord);
-				list->next = (YangNodeList*)smiMalloc(sizeof(YangNodeList));
-				list = list->next;
-				nextWord++; //next iteration starts from char after space
-				beginWord = nextWord;
-				nextWord = strstr(beginWord," ");
-			}
-			list->name = smiStrdup(beginWord);
-			list->next = NULL;//terminate list*/
+            node->info = getKeyList($2);
 		}
 	;
 	
