@@ -76,9 +76,14 @@ typedef struct _YangNodeList {
 typedef struct _YangIdentifierList {
    char* prefix;
    char* ident;
-   struct _YangIdentifierList    *next;
-    
+   struct _YangIdentifierList    *next;    
 } _YangIdentifierList;
+
+typedef struct _YangList {
+    void                *data;
+    void                *additionalInfo;
+    struct _YangList    *next;    
+} _YangList;
 
 typedef struct _YangImportList {
     char                *prefix;
@@ -179,6 +184,10 @@ void freeIdentiferList(_YangIdentifierList *listPtr);
 _YangIdentifierList *getXPathNode(char* s);
 
 _YangIdentifierList *getKeyList(char* s);
+
+_YangIdentifierList *getUniqueList(char* s);
+
+_YangList* processUniqueList(_YangNode *nodePtr, _YangIdentifierList* il);
 
 /*
  *  Free YANG datastructures

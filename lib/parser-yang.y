@@ -1552,27 +1552,9 @@ keyStatement: keyKeyword string stmtEnd
 uniqueStatement: uniqueKeyword string stmtEnd
 		{
             node = addYangNode($2, YANG_DECL_UNIQUE, topNode());
-/*			char *beginWord = $2; //beginning or current word
-			int i = 0;
-			for(i; beginWord[i]; i++) //substitute tabs with spaces
-			{
-				if(beginWord[i]=='\t') beginWord[i]=' ';
-			}
-			
-			char *nextWord = strstr(beginWord," "); //location of next space
- 
-			while(nextWord)
-			{
-				nextWord[0] = '\0'; //change space for null so that duplication is to this position
-				list->name = smiStrdup(beginWord);
-				list->next = (YangNodeList*)smiMalloc(sizeof(YangNodeList));
-				list = list->next;
-				nextWord++; //next iteration starts from char after space
-				beginWord = nextWord;
-				nextWord = strstr(beginWord," ");
-			}
-			list->name = smiStrdup(beginWord);
-			list->next = NULL;//terminate list*/
+            _YangIdentifierList *il = getUniqueList($2);
+            node->info = processUniqueList(node, il);
+            freeIdentiferList(il);
 		}
 	;
 

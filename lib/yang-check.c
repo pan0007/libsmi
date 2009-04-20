@@ -638,15 +638,15 @@ void validateConfigProperties(_YangNode *nodePtr, int isConfigTrue) {
     }
 }
 
-/*
- *  From the specification:
- *  The "key" statement, which MUST be present if the list represents configuration, and MAY be present otherwise, 
- *  takes as an argument a string which specifies a space separated list of leaf identifiers of this list.  
- *  Each such leaf identifier MUST refer to a child leaf of the list.  A leaf that is part of the key can be of any built-in or derived type, except it MUST NOT be the built-in type "empty". 
- *  All key leafs in a list MUST have the same value for their "config"  as the list itself. 
- */
 void validateLists(_YangNode *nodePtr) {
     if (nodePtr->export.nodeKind == YANG_DECL_LIST) {
+        /*
+         *  From the specification:
+         *  The "key" statement, which MUST be present if the list represents configuration, and MAY be present otherwise, 
+         *  takes as an argument a string which specifies a space separated list of leaf identifiers of this list.  
+         *  Each such leaf identifier MUST refer to a child leaf of the list.  A leaf that is part of the key can be of any built-in or derived type, except it MUST NOT be the built-in type "empty". 
+         *  All key leafs in a list MUST have the same value for their "config"  as the list itself. 
+         */        
         _YangNode *key = findChildNodeByType(nodePtr, YANG_DECL_KEY);
         if (yangIsTrueConf(nodePtr->export.config)) {
             if (!key) {
@@ -671,6 +671,41 @@ void validateLists(_YangNode *nodePtr) {
                 keys = keys->next;
             }
         }
+
+        /*
+         *  From the specification:  
+         *  The "unique" statement takes as an argument a string which contains a space separated list of schema node identifiers, 
+         *  which MUST be given in the descendant form. Each such schema node identifier MUST refer to a leaf. 
+         *  If one of the referenced leafs represents configuration data, then all of the referenced leafs MUST represent configuration data. 
+         */
+        _YangNode *childPtr = nodePtr->firstChildPtr;
+        while (childPtr) {            
+            if (childPtr->export.nodeKind == YANG_DECL_UNIQUE) {
+                _YangList* l = (_YangList*)childPtr->info;
+                while (l) {                    
+                    _YangIdentifierList* il = (_YangIdentifierList*)l->data;
+                    _YangNode* cur = nodePtr;
+                    while (il) {
+                        cur = cur->firstChildPtr;                        
+                        while (cur) {
+                            if (isDataDefNode(cur) && !strcmp(cur->export.value, il->ident)) break;
+                            cur = cur->nextSiblingPtr;
+                        }
+                        if (!cur) {
+                            smiPrintErrorAtLine(currentParser, ERR_INVALIDE_UNIQUE_REFERENCE, childPtr->line, l->additionalInfo);
+                            break;
+                        }
+                        il = il->next;
+                    }
+                    if (cur && cur->export.nodeKind != YANG_DECL_LEAF) {
+                        smiPrintErrorAtLine(currentParser, ERR_INVALIDE_UNIQUE_REFERENCE, childPtr->line, l->additionalInfo);
+                        break;
+                    }
+                    l = l->next;
+                }
+            }
+            childPtr = childPtr->nextSiblingPtr;
+        }
     }
     _YangNode *childPtr = NULL;
     for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
@@ -684,6 +719,7 @@ void semanticAnalysis(_YangNode *module) {
     expandGroupings(module);
     extendAugments(module);
     validateConfigProperties(module, 1);
+
     validateLists(module);
     uniqueNames(module);
 }
