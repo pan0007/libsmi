@@ -805,7 +805,7 @@ int isDataDefNode(_YangNode* nodePtr) {
 }
 
  /*
-  * Schema Node Identifiers 
+  * Grammar for simple elements
   */
 
 int isWSP(char ch) {
@@ -822,6 +822,29 @@ int isAlpha(char ch) {
 
 int isDigit(char ch) {
     return (ch >= '0' && ch <= '9');
+}
+
+int isPositiveInteger(char *s) {
+    if (!s) return 0;
+    if (!(s[0] > '0' && s[0] <= '9')) {
+        return 0;
+    }
+    int i;
+    for (i = 1; i < strlen(s); i++) {
+        if (!isDigit(s[i]))
+            return 0;
+    }
+    return 1;
+}
+
+int isNonNegativeInteger(char *s) {
+    if (!s) return 0;
+    if (isPositiveInteger(s) || (s[0] == '0' && strlen(s) == 1)) {
+        return 1;
+    } else {
+        return 0;
+    }
+   
 }
 
 int buildIdentifier(char *s) {

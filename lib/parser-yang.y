@@ -1522,6 +1522,9 @@ listSubstatement:	mustStatement
 
 max_elementsStatement: 	max_elementsKeyword string stmtEnd
                     {
+                        if (!isNonNegativeInteger($2)) {                            
+                            smiPrintError(currentParser, ERR_ARG_VALUE, $2, "non-negative-integer");
+                        }
                         uniqueNodeKind(topNode(), YANG_DECL_MAX_ELEMENTS);
                         node = addYangNode($2, YANG_DECL_MAX_ELEMENTS, topNode());
                     }
@@ -1529,6 +1532,9 @@ max_elementsStatement: 	max_elementsKeyword string stmtEnd
 
 min_elementsStatement: 	min_elementsKeyword string stmtEnd
                     {
+                        if (!isNonNegativeInteger($2)) {
+                            smiPrintError(currentParser, ERR_ARG_VALUE, $2, "non-negative-integer");
+                        }
                         uniqueNodeKind(topNode(), YANG_DECL_MIN_ELEMENTS);
                         node = addYangNode($2, YANG_DECL_MIN_ELEMENTS, topNode());
                     }

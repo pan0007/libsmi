@@ -6,6 +6,11 @@
 		list interface {
              key name;
              unique "l:test/name1 test/l:test2 c:name name";
+             ordered-by user;
+
+             min-elements  12;
+             max-elements " 10";
+             min-elements  "124 ";
 
              unique "name speed l:speed test/l:test1";
 

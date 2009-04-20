@@ -181,6 +181,8 @@ int isDescendantSchemaNodeid(char *s);
 
 void freeIdentiferList(_YangIdentifierList *listPtr);
 
+int isNonNegativeInteger(char *s);
+
 _YangIdentifierList *getXPathNode(char* s);
 
 _YangIdentifierList *getKeyList(char* s);
