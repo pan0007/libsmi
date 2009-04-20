@@ -786,6 +786,9 @@ static Error errors[] = {
       "the leaf '%s' occurs more than once in the unique expression", NULL},
     { 2, ERR_MUST_BE_CONFIG, "must-be-config", 
       "one of the referenced by the unique statement leafs represents configuration data, so all of the referenced leafs MUST represent configuration data.", NULL},
+    { 2, ERR_IVALID_ORDERED_BY_VALUE, "invalid-ordered-by-value", 
+      "bad value '%s' (should be ordered-by-arg).", NULL},
+
     { 0, 0, NULL, NULL, NULL }
 };
 
