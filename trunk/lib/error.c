@@ -723,13 +723,13 @@ static Error errors[] = {
     { 2, ERR_CYCLIC_IMPORTS, "cyclic-imports-value", 
       "circular dependency between modules '%s' and '%s'", NULL},
     { 2, ERR_SUBMODULE_BELONGS_TO_ANOTHER_MODULE, "invalid-belongs-to", 
-      "submodule '%s' does not belong to module '%s'", NULL},
+      "the submodule '%s' does not belong to module '%s'", NULL},
     { 2, ERR_REQUIRED_ELEMENT, "required-element", 
-      "element '%s' is mandatory", NULL},
+      "statement '%s' is mandatory", NULL},
     { 2, ERR_WRONG_CARDINALITY, "wrong-cardinality", 
-      "cardinality of element '%s' is wrong (must be %s)", NULL},
+      "cardinality of the element '%s' is wrong (must be %s)", NULL},
     { 2, ERR_DUPLICATED_CASE_IDENTIFIER, "duplicated-case-identifier", 
-      "case identifier '%s' is duplicated within the choice statement", NULL},
+      "the case identifier '%s' is duplicated within the choice statement", NULL},
     { 2, ERR_WRONG_ENUM, "duplicated-case-identifier", 
       "The 'enum' statement takes as an argument a string which MUST NOT be empty and MUST NOT have any leading or trailing  whitespace characters.", NULL},
     { 2, ERR_DUPLICATED_ENUM_NAME, "duplicated-case-identifier", 
@@ -794,6 +794,8 @@ static Error errors[] = {
     "the defaule case '%s' is not found", NULL},
     { 2, ERR_MANDATORY_NODE_UNDER_DEFAULT_CASE, "invalid-ordered-by-value", 
     "mandatory nodes are not allowed directly under the default case '%s' of the choice '%s'", NULL},    
+    { 2, ERR_DATA_DEF_REQUIRED, "data-def-required", 
+    "the %s requires at least one data definition statement as a child", NULL},    
     { 0, 0, NULL, NULL, NULL }
 };
 

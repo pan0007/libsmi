@@ -1909,6 +1909,18 @@ inputStatement: inputKeyword
 			inputOutputSubstatement_0n
 		'}'
 		{
+            int numberDataDefStmts = 0;
+            _YangNode *childPtr = topNode()->firstChildPtr;
+            while (childPtr) {
+                if (!(childPtr->export.nodeKind == YANG_DECL_TYPEDEF ||
+                    childPtr->export.nodeKind == YANG_DECL_GROUPING)) {
+                        numberDataDefStmts++;
+                    }
+                childPtr = childPtr->nextSiblingPtr;
+            }
+            if (!numberDataDefStmts) {
+                smiPrintError(thisParserPtr, ERR_DATA_DEF_REQUIRED, "input");            
+            }
 			pop();
 		}
 		;
@@ -1935,6 +1947,18 @@ outputStatement: outputKeyword
 			inputOutputSubstatement_0n
 		'}'
 		{
+            int numberDataDefStmts = 0;
+            _YangNode *childPtr = topNode()->firstChildPtr;
+            while (childPtr) {
+                if (!(childPtr->export.nodeKind == YANG_DECL_TYPEDEF ||
+                    childPtr->export.nodeKind == YANG_DECL_GROUPING)) {
+                        numberDataDefStmts++;
+                    }
+                childPtr = childPtr->nextSiblingPtr;
+            }
+            if (!numberDataDefStmts) {
+                smiPrintError(thisParserPtr, ERR_DATA_DEF_REQUIRED, "input");            
+            }
 			pop();
 		}
 		;
