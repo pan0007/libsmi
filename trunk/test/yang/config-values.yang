@@ -27,7 +27,7 @@ module config {
 
  
  	list interface-state {
-         config true;
+         config false;
 
          leaf name {
              type string;

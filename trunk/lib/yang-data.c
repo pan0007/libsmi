@@ -43,6 +43,7 @@
 #include "yang-data.h"
 #include "yang.h"
 #include "parser-yang.tab.h"
+#include "yang-check.h"
 
 #ifdef HAVE_DMALLOC_H
 #include <dmalloc.h>
@@ -746,6 +747,11 @@ void freeYangNode(_YangNode *nodePtr) {
             smiFree(nodePtr->typeInfo);
         }
         
+        if (nodeKind == YANG_DECL_KEY) {
+            freeIdentiferList(nodePtr->info);
+            nodePtr->info = NULL;
+        }
+        
         smiFree(nodePtr->info);
         nodePtr->info = NULL;
     }
@@ -795,6 +801,14 @@ int isDataDefNode(_YangNode* nodePtr) {
  /*
   * Schema Node Identifiers 
   */
+
+int isWSP(char ch) {
+    return ch == ' ' ||  ch == '\t';
+}
+
+int isSeparator(char ch) {
+    return isWSP(ch) || ch == '\n';
+}
 
 int isAlpha(char ch) {
     return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z');
@@ -857,15 +871,29 @@ int isDescendantSchemaNodeid(char *s) {
     return (descendantSchemaNodeid(s) == strlen(s));
 }
 
-_YangXPathList *getXPathNode(char* s) {
+void freeIdentiferList(_YangIdentifierList *listPtr) {
+    while (listPtr) {
+        _YangIdentifierList *tmp = listPtr;
+        listPtr = listPtr->next;
+        if (tmp->ident) {
+            smiFree(tmp->ident);
+        }
+        if (tmp->prefix) {
+            smiFree(tmp->prefix);
+        }        
+        smiFree(tmp);
+    }    
+}
+
+_YangIdentifierList *getXPathNode(char* s) {
     int i = 0;
-    _YangXPathList *ret = NULL, *prev = NULL;
+    _YangIdentifierList *ret = NULL, *prev = NULL;
     if (s[0] == '/') i = 1;
     
     while (i < strlen(s)) {
         int i1 = buildIdentifier(s + i);
         int i2 = 0;
-        _YangXPathList *cur = smiMalloc(sizeof(_YangXPathList));
+        _YangIdentifierList *cur = smiMalloc(sizeof(_YangIdentifierList));
         cur->next = NULL;
         cur->prefix = NULL;
         if (s[i + i1] == ':') {
@@ -885,11 +913,73 @@ _YangXPathList *getXPathNode(char* s) {
             prev->next = cur;
             prev = cur;
         }
-/*        if (cur->prefix) {
-            printf("%s %s\n", cur->ident, cur->prefix);
-        } else {
-            printf("%s\n", cur->ident);
-        }*/
     }
     return ret;    
 }
+
+_YangIdentifierList *getKeyList(char* s) {
+    int i = 0;
+    _YangIdentifierList *ret = NULL, *item = NULL, *prev = NULL;
+    
+    while (i < strlen(s)) {
+        while (i != 0 && i < strlen(s) && isSeparator(s[i])) {
+            i++;
+        }
+        if (i < strlen(s)) {
+            int i1 = buildIdentifier(s + i);
+            if (i1) {
+                char* key = smiStrndup(s + i, i1);
+                i += i1;
+                int isNew = 1;
+                item = ret;
+                while (item) {
+                    if (!strcmp(item->ident, key)) {
+                        isNew = 0;
+                        break;
+                    }
+                    item = item->next;
+                }
+                if (isNew) {
+                    _YangIdentifierList *cur = smiMalloc(sizeof(_YangIdentifierList));
+                    cur->next = NULL;
+                    cur->prefix = NULL;
+                    cur->ident  = key;
+
+                    if (ret == NULL) {
+                        ret = cur;
+                        prev = cur;
+                    } else {
+                        prev->next = cur;
+                        prev = cur;
+                    }
+                } else {
+                    smiPrintError(currentParser, ERR_DUPLICATED_KEY, key);
+                    smiFree(key);
+                }
+            } else {
+                freeIdentiferList(ret);
+                ret = NULL;
+                break;                
+            }
+        } else {
+            freeIdentiferList(ret);
+            ret = NULL;
+            break;
+        }
+    }
+    if (ret == NULL) {
+        smiPrintError(currentParser, ERR_KEY_ARG_VALUE, s);
+    }
+    /*if (!ret) {
+        printf("(null)\n");
+    } else {
+         _YangIdentifierList *cur = ret;
+        while (cur) {
+            printf("%s\n", cur->ident);
+            cur = cur->next;
+        }
+        printf("-----------------------------------\n");
+    }*/
+    return ret;    
+}
+    

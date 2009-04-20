@@ -73,12 +73,12 @@ typedef struct _YangNodeList {
     struct _YangNodeList *next;
 } _YangNodeList;
 
-typedef struct _YangXPathList {
+typedef struct _YangIdentifierList {
    char* prefix;
    char* ident;
-   struct _YangXPathList    *next;
+   struct _YangIdentifierList    *next;
     
-} _YangXPathList;
+} _YangIdentifierList;
 
 typedef struct _YangImportList {
     char                *prefix;
@@ -174,7 +174,12 @@ int isAbsoluteSchemaNodeid(char *s);
 
 int isDescendantSchemaNodeid(char *s);
 
-_YangXPathList *getXPathNode(char* s);
+void freeIdentiferList(_YangIdentifierList *listPtr);
+
+_YangIdentifierList *getXPathNode(char* s);
+
+_YangIdentifierList *getKeyList(char* s);
+
 /*
  *  Free YANG datastructures
  */

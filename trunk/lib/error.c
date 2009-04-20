@@ -767,7 +767,19 @@ static Error errors[] = {
     { 2, ERR_NODE_KIND_NOT_ALLOWED, "node-kind-not-allowed", 
       "%s '%s' is not allowed as a child node of the target %s '%s'", NULL},
     { 2, ERR_INVALID_CONFIG, "invalid-config", 
-      "config true cannot be set for node '%s' when the parent node has config false", NULL},      
+      "config true cannot be set for node '%s' when the parent node has config false", NULL},
+    { 2, ERR_KEY_REQUIRED, "key-required", 
+      "the list '%s' needs at least one key", NULL},
+    { 2, ERR_KEY_ARG_VALUE, "key-arg-required", 
+      "bad value '%s' (must be key-arg)", NULL},
+    { 2, ERR_DUPLICATED_KEY, "duplicated-key", 
+      "the key '%s' must not be listed more than once", NULL},
+    { 2, ERR_INVALIDE_KEY_REFERENCE, "invalide-key-reference", 
+      "the key '%s' does not reference an existing leaf", NULL},
+    { 2, ERR_EMPTY_KEY, "invalide-key-reference", 
+      "the type empty cannot be part of a key, used by leaf '%s'", NULL},
+    { 2, ERR_INVALID_KEY_LEAF_CONFIG_VALUE, "invalide-key-leaf-config-value", 
+      "key leaf '%s' in list '%s' has not the same value for its 'config'  as the list itself.", NULL},
     { 0, 0, NULL, NULL, NULL }
 };
 

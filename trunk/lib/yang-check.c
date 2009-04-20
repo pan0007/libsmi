@@ -43,9 +43,6 @@
  */
 extern Parser *currentParser;
 
-int isWSP(char ch) {
-    return  (ch == ' ' || ch == '\t');
-}
 
 time_t checkDate(Parser *parserPtr, char *date)
 {
@@ -457,16 +454,8 @@ void resolveReferences(_YangNode* node) {
     }
 }
 
-void freeXPathList(_YangXPathList *listPtr) {
-    while (listPtr) {
-        _YangXPathList *tmp = listPtr;
-        listPtr = listPtr->next;
-        smiFree(tmp);
-    }    
-}
-
-int validatePrefixes(_YangXPathList *listPtr, char* modulePrefix, int prefixRequired) {
-    _YangXPathList *c = listPtr;
+int validatePrefixes(_YangIdentifierList *listPtr, char* modulePrefix, int prefixRequired) {
+    _YangIdentifierList *c = listPtr;
     while (c) {
         if (c->prefix && strcmp(c->prefix, modulePrefix)) {
             return 0;
@@ -517,7 +506,7 @@ _YangNode* findTargetNode(_YangNode *nodePtr, char* value) {
  *  Resolves a node in the current or imported module by an XPath expression.
  */
 _YangNode *resolveXPath(_YangNode *nodePtr) {
-    _YangXPathList *listPtr = getXPathNode(nodePtr->export.value), *tmp;
+    _YangIdentifierList *listPtr = getXPathNode(nodePtr->export.value), *tmp;
     if (!listPtr) return NULL;
     
     _YangNode *cur = NULL, *tmpNode;
@@ -525,7 +514,7 @@ _YangNode *resolveXPath(_YangNode *nodePtr) {
     if (nodePtr->parentPtr->export.nodeKind == YANG_DECL_USES) {
         /* let's start from the node which is the parent of the 'uses'*/
         if (!validatePrefixes(listPtr, getModuleInfo(nodePtr->modulePtr)->prefix, 0)) {
-            freeXPathList(listPtr);
+            freeIdentiferList(listPtr);
             return NULL;            
         }
         cur = nodePtr->parentPtr->parentPtr;
@@ -535,17 +524,17 @@ _YangNode *resolveXPath(_YangNode *nodePtr) {
         if (listPtr->prefix && strcmp(listPtr->prefix, info->prefix)) {
             cur = findYangModuleByPrefix(nodePtr->modulePtr, listPtr->prefix);
             if (!cur) {
-                freeXPathList(listPtr);
+                freeIdentiferList(listPtr);
                 return NULL;
             }
             if (!validatePrefixes(listPtr, listPtr->prefix, 1)) {
-                freeXPathList(listPtr);
+                freeIdentiferList(listPtr);
                 return NULL;
             }            
         } else {            
             cur = nodePtr->modulePtr;
             if (!validatePrefixes(listPtr, getModuleInfo(cur)->prefix, 0)) {
-                freeXPathList(listPtr);
+                freeIdentiferList(listPtr);
                 return NULL;
             }
         }
@@ -570,12 +559,12 @@ _YangNode *resolveXPath(_YangNode *nodePtr) {
                 }
             }
             
-            freeXPathList(tmp);
+            freeIdentiferList(tmp);
             return NULL;
         }
         listPtr = listPtr->next;
     }
-    freeXPathList(tmp);
+    freeIdentiferList(tmp);
     return cur;
 }
 
@@ -633,7 +622,7 @@ void extendAugments(_YangNode* node) {
  *  From the specification:
  *  If a node has "config" "false", no node underneath it can have "config" set to "true".
  */
-void validateConfigParameters(_YangNode *nodePtr, int isConfigTrue) {
+void validateConfigProperties(_YangNode *nodePtr, int isConfigTrue) {
     if (!isConfigTrue) {
         if (nodePtr->export.config == YANG_CONFIG_TRUE) {
             smiPrintErrorAtLine(currentParser, ERR_INVALID_CONFIG, nodePtr->line, nodePtr->export.value);
@@ -645,8 +634,48 @@ void validateConfigParameters(_YangNode *nodePtr, int isConfigTrue) {
     }
     _YangNode *childPtr = NULL;
     for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
-        validateConfigParameters(childPtr, yangIsTrueConf(nodePtr->export.config));
+        validateConfigProperties(childPtr, yangIsTrueConf(nodePtr->export.config));
     }
+}
+
+/*
+ *  From the specification:
+ *  The "key" statement, which MUST be present if the list represents configuration, and MAY be present otherwise, 
+ *  takes as an argument a string which specifies a space separated list of leaf identifiers of this list.  
+ *  Each such leaf identifier MUST refer to a child leaf of the list.  A leaf that is part of the key can be of any built-in or derived type, except it MUST NOT be the built-in type "empty". 
+ *  All key leafs in a list MUST have the same value for their "config"  as the list itself. 
+ */
+void validateLists(_YangNode *nodePtr) {
+    if (nodePtr->export.nodeKind == YANG_DECL_LIST) {
+        _YangNode *key = findChildNodeByType(nodePtr, YANG_DECL_KEY);
+        if (yangIsTrueConf(nodePtr->export.config)) {
+            if (!key) {
+                smiPrintErrorAtLine(currentParser, ERR_KEY_REQUIRED, nodePtr->line, nodePtr->export.value);
+            }
+        }        
+        if (key) {
+            _YangIdentifierList *keys = (_YangIdentifierList*)key->info;
+            while (keys) {
+                _YangNode *leafPtr = findChildNodeByTypeAndValue(nodePtr, YANG_DECL_LEAF, keys->ident);
+                if (!leafPtr) {
+                    smiPrintErrorAtLine(currentParser, ERR_INVALIDE_KEY_REFERENCE, key->line, keys->ident);
+                } else {
+                    _YangNode *type = findChildNodeByType(leafPtr, YANG_DECL_TYPE);
+                    if (!strcmp(type->export.value, "empty")) {
+                        smiPrintErrorAtLine(currentParser, ERR_EMPTY_KEY, key->line, leafPtr->export.value);
+                    }
+                    if (yangIsTrueConf(nodePtr->export.config) != yangIsTrueConf(leafPtr->export.config)) {
+                        smiPrintErrorAtLine(currentParser, ERR_INVALID_KEY_LEAF_CONFIG_VALUE, key->line, leafPtr->export.value, nodePtr->export.value);
+                    }
+                }
+                keys = keys->next;
+            }
+        }
+    }
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        validateLists(childPtr);
+    }    
 }
 
 void semanticAnalysis(_YangNode *module) {
@@ -654,6 +683,7 @@ void semanticAnalysis(_YangNode *module) {
     resolveReferences(module);
     expandGroupings(module);
     extendAugments(module);
-    validateConfigParameters(module, 1);
+    validateConfigProperties(module, 1);
+    validateLists(module);
     uniqueNames(module);
 }
