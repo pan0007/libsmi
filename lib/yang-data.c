@@ -12,6 +12,12 @@
  * @(#) $Id: data.c 12198 2009-01-05 08:37:07Z schoenw $
  */
 
+#include "yang-data.h"
+
+
+#include "yang-data.h"
+
+
 #include <config.h>
 
 #include "smi.h"
@@ -384,6 +390,7 @@ _YangModuleInfo *createModuleInfo(_YangNode *modulePtr)
     infoPtr->organization  = NULL;
     infoPtr->contact       = NULL;
     infoPtr->parsingState  = YANG_PARSING_IN_PROGRESS;
+    infoPtr->originalModule = NULL;
     infoPtr->submodules    = NULL;
     // create a corresponding Module wrapper to maintain interface compatibility
     Module *module = addModule(smiStrdup(modulePtr->export.value), smiStrdup(currentParser->path), 0, currentParser);
@@ -692,6 +699,42 @@ _YangNode *externalModule(_YangNode *importNode) {
 }
 
 
+_YangNode *copyModule(_YangNode *nodePtr) {
+    if (!nodePtr) return NULL;  
+	_YangNode *node = (_YangNode*) smiMalloc(sizeof(_YangNode));
+    node->nodeType              = YANG_NODE_ORIGINAL;
+	node->export.value          = smiStrdup(nodePtr->export.value);
+	node->export.nodeKind       = nodePtr->export.nodeKind;
+    node->export.description	= smiStrdup(nodePtr->export.description);
+    node->export.reference		= smiStrdup(nodePtr->export.reference);
+    node->export.extra  		= NULL;
+    node->export.config         = nodePtr->export.config;
+    node->export.status         = nodePtr->export.status;
+    node->line                  = 0;
+    node->info                  = NULL;    
+    node->typeInfo              = NULL;
+    node->firstChildPtr         = NULL;
+    node->lastChildPtr          = NULL;
+    node->parentPtr             = NULL;
+    node->modulePtr             = NULL;
+
+    _YangNode *childPtr         = nodePtr->firstChildPtr;
+    while (childPtr) {
+        _YangNode* c = copyModule(childPtr);
+
+        if (!node->firstChildPtr) {
+            node->firstChildPtr = c;
+            node->lastChildPtr = c;
+        } else {
+            node->lastChildPtr->nextSiblingPtr = c;            
+            node->lastChildPtr = c;
+        }
+        childPtr = childPtr->nextSiblingPtr;
+    }
+    return node;
+    
+}
+
 void freeUniqueList(_YangList* listPtr);
 /*
  *----------------------------------------------------------------------
@@ -711,53 +754,62 @@ void freeYangNode(_YangNode *nodePtr) {
     /* free only original node's memory, because references hold only pointers to other node's fields */
     if (nodePtr->nodeType == YANG_NODE_ORIGINAL) {
         YangDecl nodeKind = nodePtr->export.nodeKind;
-
-        if (nodeKind == YANG_DECL_MODULE || nodeKind == YANG_DECL_SUBMODULE) {
-            _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
-            while (submodules) {
-                _YangNodeList *next = submodules->next;
-                smiFree(submodules);
-                submodules = next;
-            }
-            _YangImportList *imports = getModuleInfo(nodePtr)->imports;
-            while (imports) {
-                _YangImportList *next = imports->next;
-                smiFree(imports);
-                imports = next;
-            }        
-        }
-
-        if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
-            nodeKind == YANG_DECL_IF_FEATURE ||
-            nodeKind == YANG_DECL_TYPE ||
-            nodeKind == YANG_DECL_USES || 
-            nodeKind == YANG_DECL_BASE) {
-                _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
-                if (info) {
-                    smiFree(info->identifierName);
-                    smiFree(info->prefix);
+        if (nodePtr->info) {
+            if (nodeKind == YANG_DECL_MODULE || nodeKind == YANG_DECL_SUBMODULE) {
+                /* Free original tree */
+                freeYangNode(getModuleInfo(nodePtr)->originalModule);
+                
+                getModuleInfo(nodePtr)->originalModule = NULL;
+                _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
+                while (submodules) {
+                    _YangNodeList *next = submodules->next;
+                    smiFree(submodules);
+                    submodules = next;
                 }
-        }
-        
-        if (nodeKind == YANG_DECL_TYPE) {
-            smiFree(nodePtr->typeInfo);
-        }        
-        if (nodeKind == YANG_DECL_KEY) {
-            freeIdentiferList(nodePtr->info);
+                _YangImportList *imports = getModuleInfo(nodePtr)->imports;
+                while (imports) {
+                    _YangImportList *next = imports->next;
+                    smiFree(imports);
+                    imports = next;
+                }        
+            }
+
+            if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
+                nodeKind == YANG_DECL_IF_FEATURE ||
+                nodeKind == YANG_DECL_TYPE ||
+                nodeKind == YANG_DECL_USES || 
+                nodeKind == YANG_DECL_BASE) {
+                    _YangIdentifierRefInfo *info = (_YangIdentifierRefInfo*)nodePtr->info;
+                    if (info) {
+                        smiFree(info->identifierName);
+                        smiFree(info->prefix);
+                    }
+            }
+
+            if (nodeKind == YANG_DECL_TYPE) {
+                smiFree(nodePtr->typeInfo);
+            }        
+            if (nodeKind == YANG_DECL_KEY) {
+                freeIdentiferList(nodePtr->info);
+                nodePtr->info = NULL;
+            }
+            if (nodeKind == YANG_DECL_UNIQUE) {
+                freeUniqueList(nodePtr->info);
+                nodePtr->info = NULL;
+            }
+
+            smiFree(nodePtr->info);
             nodePtr->info = NULL;
         }
-        if (nodeKind == YANG_DECL_UNIQUE) {
-            freeUniqueList(nodePtr->info);
-            nodePtr->info = NULL;
-        }
-        
-        smiFree(nodePtr->info);
-        nodePtr->info = NULL;
        
         smiFree(nodePtr->export.value);
         nodePtr->export.value = NULL;
         smiFree(nodePtr->export.extra);
-        nodePtr->export.extra = NULL;    
+        nodePtr->export.extra = NULL;
+        /*
+         *  We don't need to free the memory of 'description' and 'reference', 
+         *  because they are reffered from another node and will be released there
+         */
         nodePtr->export.description = NULL;
         nodePtr->export.reference = NULL;        
     }
@@ -1100,7 +1152,7 @@ _YangList* processUniqueList(_YangNode *nodePtr, _YangIdentifierList* il) {
             tmpPath = tmpPath->next;
         }
         if (tmpPath) {
-            smiPrintError(currentParser, ERR_INVALIDE_UNIQUE_REFERENCE, cur->ident);
+            smiPrintError(currentParser, ERR_INVALID_UNIQUE_REFERENCE, cur->ident);
             isOk = 0;
         }
         /* validate whether we have already met a reference to the same leaf */

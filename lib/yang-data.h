@@ -48,7 +48,8 @@ typedef enum YangBuiltInTypes {
 typedef enum YangNodeType {
     YANG_NODE_ORIGINAL          = 0,
     YANG_NODE_EXPANDED_USES     = 1,
-    YANG_NODE_EXPANDED_AUGMENT  = 2    
+    YANG_NODE_EXPANDED_AUGMENT  = 2,
+    YANG_NODE_REFINED           = 3
 } YangNodeType;
 
 typedef struct _YangTypeInfo {
@@ -105,6 +106,8 @@ typedef struct _YangModuleInfo {
     char        *contact;
     _YangParsingState parsingState;
     int         conformance;
+    /* a module without expantion */
+    struct _YangNode     *originalModule;
     struct _YangNodeList *submodules;
     struct _YangImportList *imports;
 } _YangModuleInfo;
@@ -191,6 +194,7 @@ _YangIdentifierList *getUniqueList(char* s);
 
 _YangList* processUniqueList(_YangNode *nodePtr, _YangIdentifierList* il);
 
+_YangNode *copyModule(_YangNode *nodePtr);
 /*
  *  Free YANG datastructures
  */

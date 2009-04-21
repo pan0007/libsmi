@@ -247,6 +247,9 @@ _YangNode *createReferenceNode(_YangNode *parentPtr, _YangNode *reference, YangN
     node->nodeType              = nodeType;
 	node->export.value          = reference->export.value;
 	node->export.nodeKind       = reference->export.nodeKind;
+    node->export.config 		= reference->export.config;
+    node->export.status 		= reference->export.status;
+    node->line                  = reference->line;
     node->export.description	= NULL;
     node->export.reference		= NULL;
     node->export.extra  		= reference->export.extra;
@@ -304,6 +307,133 @@ void copySubtree(_YangNode *destPtr, _YangNode *subtreePtr, YangNodeType nodeTyp
     }
 }
 
+_YangNode* findTargetNode(_YangNode *nodePtr, char* value) {
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        if (isSchemaNode(childPtr->export.nodeKind) && !strcmp(childPtr->export.value, value)) {
+            return childPtr;
+        }
+    }
+    return NULL;
+}
+
+/*
+ *  Resolves a node in the current or imported module by an XPath expression.
+ */
+_YangNode *resolveXPath(_YangNode *nodePtr) {
+    _YangIdentifierList *listPtr = getXPathNode(nodePtr->export.value), *tmp;
+    if (!listPtr) return NULL;
+    
+    _YangNode *cur = NULL, *tmpNode;
+    /* 'uses' substatement */
+    if (nodePtr->parentPtr->export.nodeKind == YANG_DECL_USES) {
+        /* let's start from the node which is the parent of the 'uses'*/
+        if (!validatePrefixes(listPtr, getModuleInfo(nodePtr->modulePtr)->prefix, 0)) {
+            freeIdentiferList(listPtr);
+            return NULL;            
+        }
+        cur = nodePtr->parentPtr->parentPtr;
+    } else {
+        /* 'module' substatement */
+        _YangModuleInfo *info = getModuleInfo(nodePtr->modulePtr);
+        if (listPtr->prefix && strcmp(listPtr->prefix, info->prefix)) {
+            cur = findYangModuleByPrefix(nodePtr->modulePtr, listPtr->prefix);
+            if (!cur) {
+                freeIdentiferList(listPtr);
+                return NULL;
+            }
+            if (!validatePrefixes(listPtr, listPtr->prefix, 1)) {
+                freeIdentiferList(listPtr);
+                return NULL;
+            }            
+        } else {            
+            cur = nodePtr->modulePtr;
+            if (!validatePrefixes(listPtr, getModuleInfo(cur)->prefix, 0)) {
+                freeIdentiferList(listPtr);
+                return NULL;
+            }
+        }
+    }
+    tmp = listPtr;
+    _YangNodeList* submodules = NULL;
+    while (listPtr) {
+        tmpNode = cur;
+        cur = findTargetNode(cur, listPtr->ident);
+        if (!cur) {
+            if (submodules) {                
+                cur = submodules->nodePtr;
+                submodules = submodules->next;
+                continue;
+            }
+            if (tmpNode->export.nodeKind == YANG_DECL_MODULE || tmpNode->export.nodeKind == YANG_DECL_SUBMODULE) {
+                submodules = getModuleInfo(tmpNode)->submodules;
+                if (submodules) {
+                    cur = submodules->nodePtr;
+                    submodules = submodules->next;
+                    continue;                
+                }
+            }
+            
+            freeIdentiferList(tmp);
+            return NULL;
+        }
+        listPtr = listPtr->next;
+    }
+    freeIdentiferList(tmp);
+    return cur;
+}
+
+int isAllowedStatement(int stmt, int *allowedStmts, int len) {
+    int i = 0;
+    for (; i < len; i++)
+        if (allowedStmts[i] == stmt) {
+            return 1;
+        }
+    return 0;
+}
+
+void applyRefine(_YangNode* target, _YangNode* refinement, int* allowedStmts, int len) {
+    _YangNode *child = refinement->firstChildPtr;
+    
+    while (child) {
+        if (!isAllowedStatement(child->export.nodeKind, allowedStmts, len)) {
+            smiPrintErrorAtLine(currentParser, ERR_INVALID_REFINE, child->line, yandDeclKeyword[target->export.nodeKind], target->export.value, yandDeclKeyword[child->export.nodeKind]);
+        } else {
+            if (child->export.nodeKind == YANG_DECL_MUST_STATEMENT) {
+                copySubtree(target, child, YANG_NODE_REFINED, 0);
+            } else if (child->export.nodeKind == YANG_DECL_DESCRIPTION || 
+                child->export.nodeKind == YANG_DECL_REFERENCE) {
+                /* just skip, because they are not relevant for the future checks */
+            } else if (child->export.nodeKind == YANG_DECL_PRESENCE) {
+                if (!findChildNodeByType(target, child->export.nodeKind)) {
+                    copySubtree(target, child, YANG_NODE_REFINED, 0);
+                }
+            } else if (child->export.nodeKind == YANG_DECL_CONFIG ||
+                    child->export.nodeKind == YANG_DECL_DEFAULT || 
+                    child->export.nodeKind == YANG_DECL_MANDATORY || 
+                    child->export.nodeKind == YANG_DECL_MIN_ELEMENTS ||
+                    child->export.nodeKind == YANG_DECL_MAX_ELEMENTS) {
+                _YangNode *oldOne = findChildNodeByType(target, child->export.nodeKind);
+                if (oldOne) {
+                    smiFree(oldOne->export.value);
+                    oldOne->export.value = smiStrdup(child->export.value);
+                } else {
+                    copySubtree(target, child, YANG_NODE_REFINED, 0);
+                    oldOne = child;
+                }
+                if (oldOne->export.nodeKind == YANG_DECL_CONFIG) {
+                    if (!strcmp(oldOne->export.value, "true")) {
+                        setConfig(target, YANG_CONFIG_TRUE);
+                    } else {  
+                        setConfig(target, YANG_CONFIG_FALSE);
+                    }
+                }
+            }
+        }
+        child = child->nextSiblingPtr;
+    }
+}
+
 /*
  * From the specification:
  *  1. The effect of a "uses" reference to a grouping is that the nodes defined by the grouping 
@@ -340,6 +470,42 @@ int expandGroupings(_YangNode *node) {
                     }
                     refChild = refChild->nextSiblingPtr;
                 }
+                
+                /* Apply refinements if there are any  */
+                _YangNode *child = node->firstChildPtr;
+                while (child) {
+                    if (child->export.nodeKind == YANG_DECL_REFINE) {
+                        _YangNode* refinement = child;
+                        if (refinement) {
+                            _YangNode *targetNodePtr = resolveXPath(refinement);
+
+                            if (!targetNodePtr) {
+                                smiPrintErrorAtLine(currentParser, ERR_XPATH_NOT_RESOLVED, refinement->line, refinement->export.value);
+                            } else {
+                                if (targetNodePtr->export.nodeKind == YANG_DECL_CONTAINER) {
+                                    int types[] = {YANG_DECL_MUST_STATEMENT, YANG_DECL_PRESENCE, YANG_DECL_CONFIG, YANG_DECL_DESCRIPTION, YANG_DECL_REFERENCE};
+                                    applyRefine(targetNodePtr, refinement, types, 4);
+                                } else if (targetNodePtr->export.nodeKind == YANG_DECL_LEAF) {
+                                    int types[] = {YANG_DECL_MUST_STATEMENT, YANG_DECL_DEFAULT, YANG_DECL_CONFIG, YANG_DECL_MANDATORY, YANG_DECL_DESCRIPTION, YANG_DECL_REFERENCE};
+                                    applyRefine(targetNodePtr, refinement, types, 6);
+                                } else if (targetNodePtr->export.nodeKind == YANG_DECL_LEAF_LIST || targetNodePtr->export.nodeKind == YANG_DECL_LIST) {
+                                    int types[] = {YANG_DECL_MUST_STATEMENT, YANG_DECL_CONFIG, YANG_DECL_MIN_ELEMENTS, YANG_DECL_MAX_ELEMENTS, YANG_DECL_DESCRIPTION, YANG_DECL_REFERENCE};
+                                    applyRefine(targetNodePtr, refinement, types, 6);
+                                } else if (targetNodePtr->export.nodeKind == YANG_DECL_CHOICE) {
+                                    int types[] = {YANG_DECL_DEFAULT, YANG_DECL_CONFIG, YANG_DECL_MANDATORY, YANG_DECL_DESCRIPTION, YANG_DECL_REFERENCE};
+                                    applyRefine(targetNodePtr, refinement, types, 5);
+                                } else if (targetNodePtr->export.nodeKind == YANG_DECL_CASE) {
+                                    int types[] = {YANG_DECL_DESCRIPTION, YANG_DECL_REFERENCE};
+                                    applyRefine(targetNodePtr, refinement, types, 2);
+                                } else if (targetNodePtr->export.nodeKind == YANG_DECL_ANYXML) {
+                                    int types[] = {YANG_DECL_CONFIG, YANG_DECL_MANDATORY, YANG_DECL_DESCRIPTION, YANG_DECL_REFERENCE};
+                                    applyRefine(targetNodePtr, refinement, types, 4);
+                                }                            
+                            }
+                        }
+                    }                    
+                    child = child->nextSiblingPtr;
+                }               
             }
         }
     }
@@ -505,89 +671,13 @@ int isSchemaNode(YangDecl kind) {
            kind == YANG_DECL_NOTIFICATION;
 }
 
-_YangNode* findTargetNode(_YangNode *nodePtr, char* value) {
-    _YangNode *childPtr = NULL;
-    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
-        if (isSchemaNode(childPtr->export.nodeKind) && !strcmp(childPtr->export.value, value)) {
-            return childPtr;
-        }
-    }
-    return NULL;
-}
-
-/*
- *  Resolves a node in the current or imported module by an XPath expression.
- */
-_YangNode *resolveXPath(_YangNode *nodePtr) {
-    _YangIdentifierList *listPtr = getXPathNode(nodePtr->export.value), *tmp;
-    if (!listPtr) return NULL;
-    
-    _YangNode *cur = NULL, *tmpNode;
-    /* 'uses' substatement */
-    if (nodePtr->parentPtr->export.nodeKind == YANG_DECL_USES) {
-        /* let's start from the node which is the parent of the 'uses'*/
-        if (!validatePrefixes(listPtr, getModuleInfo(nodePtr->modulePtr)->prefix, 0)) {
-            freeIdentiferList(listPtr);
-            return NULL;            
-        }
-        cur = nodePtr->parentPtr->parentPtr;
-    } else {
-        /* 'module' substatement */
-        _YangModuleInfo *info = getModuleInfo(nodePtr->modulePtr);
-        if (listPtr->prefix && strcmp(listPtr->prefix, info->prefix)) {
-            cur = findYangModuleByPrefix(nodePtr->modulePtr, listPtr->prefix);
-            if (!cur) {
-                freeIdentiferList(listPtr);
-                return NULL;
-            }
-            if (!validatePrefixes(listPtr, listPtr->prefix, 1)) {
-                freeIdentiferList(listPtr);
-                return NULL;
-            }            
-        } else {            
-            cur = nodePtr->modulePtr;
-            if (!validatePrefixes(listPtr, getModuleInfo(cur)->prefix, 0)) {
-                freeIdentiferList(listPtr);
-                return NULL;
-            }
-        }
-    }
-    tmp = listPtr;
-    _YangNodeList* submodules = NULL;
-    while (listPtr) {
-        tmpNode = cur;
-        cur = findTargetNode(cur, listPtr->ident);
-        if (!cur) {
-            if (submodules) {                
-                cur = submodules->nodePtr;
-                submodules = submodules->next;
-                continue;
-            }
-            if (tmpNode->export.nodeKind == YANG_DECL_MODULE || tmpNode->export.nodeKind == YANG_DECL_SUBMODULE) {
-                submodules = getModuleInfo(tmpNode)->submodules;
-                if (submodules) {
-                    cur = submodules->nodePtr;
-                    submodules = submodules->next;
-                    continue;                
-                }
-            }
-            
-            freeIdentiferList(tmp);
-            return NULL;
-        }
-        listPtr = listPtr->next;
-    }
-    freeIdentiferList(tmp);
-    return cur;
-}
-
 /*
  * Expands all augment statements.
  */
-void extendAugments(_YangNode* node) {
+void expangAugments(_YangNode* node) {
     _YangNode *child = node->firstChildPtr;
     while (child) {
-        extendAugments(child);
+        expangAugments(child);
         child = child->nextSiblingPtr;
     }    
     YangDecl nodeKind = node->export.nodeKind;    
@@ -669,7 +759,7 @@ void validateLists(_YangNode *nodePtr) {
          *  takes as an argument a string which specifies a space separated list of leaf identifiers of this list.  
          *  Each such leaf identifier MUST refer to a child leaf of the list.  A leaf that is part of the key can be of any built-in or derived type, except it MUST NOT be the built-in type "empty". 
          *  All key leafs in a list MUST have the same value for their "config"  as the list itself. 
-         */        
+         */
         _YangNode *key = findChildNodeByType(nodePtr, YANG_DECL_KEY);
         if (yangIsTrueConf(nodePtr->export.config)) {
             if (!key) {
@@ -681,7 +771,7 @@ void validateLists(_YangNode *nodePtr) {
             while (keys) {
                 _YangNode *leafPtr = findChildNodeByTypeAndValue(nodePtr, YANG_DECL_LEAF, keys->ident);
                 if (!leafPtr) {
-                    smiPrintErrorAtLine(currentParser, ERR_INVALIDE_KEY_REFERENCE, key->line, keys->ident);
+                    smiPrintErrorAtLine(currentParser, ERR_INVALID_KEY_REFERENCE, key->line, keys->ident);
                 } else {
                     _YangNode *type = findChildNodeByType(leafPtr, YANG_DECL_TYPE);
                     if (!strcmp(type->export.value, "empty")) {
@@ -716,13 +806,13 @@ void validateLists(_YangNode *nodePtr) {
                             cur = cur->nextSiblingPtr;
                         }
                         if (!cur) {
-                            smiPrintErrorAtLine(currentParser, ERR_INVALIDE_UNIQUE_REFERENCE, childPtr->line, l->additionalInfo);
+                            smiPrintErrorAtLine(currentParser, ERR_INVALID_UNIQUE_REFERENCE, childPtr->line, l->additionalInfo);
                             break;
                         }
                         il = il->next;
                     }
                     if (cur && cur->export.nodeKind != YANG_DECL_LEAF) {
-                        smiPrintErrorAtLine(currentParser, ERR_INVALIDE_UNIQUE_REFERENCE, childPtr->line, l->additionalInfo);
+                        smiPrintErrorAtLine(currentParser, ERR_INVALID_UNIQUE_REFERENCE, childPtr->line, l->additionalInfo);
                         break;
                     } else if (cur) {
                         if (yangIsTrueConf(cur->export.config)) {
@@ -802,10 +892,12 @@ void validateDefaultStatements(_YangNode *nodePtr) {
 }
 
 void semanticAnalysis(_YangNode *module) {
+    getModuleInfo(module)->originalModule = copyModule(module);
     initMap();
     resolveReferences(module);
     expandGroupings(module);
-    extendAugments(module);
+    
+    expangAugments(module);
     validateConfigProperties(module, 1);
     
     validateDefaultStatements(module);
