@@ -32,6 +32,7 @@
 #include "error.h"
 #include "util.h"
 #include "snprintf.h"
+#include "parser-smi.tab.h"
 
 const char* yandDeclKeyword[] = {   "unknown",
                                     "module",
@@ -124,7 +125,11 @@ int yangIsModule(const char* modulename) {
 }
 
 YangNode* yangGetModule(char *modulename) {
-    return &(findYangModuleByName(modulename)->export);
+    if (ONLY_ORIGINAL) {
+        return &((getModuleInfo(findYangModuleByName(modulename))->originalModule)->export);
+    } else {
+        return &(findYangModuleByName(modulename)->export);
+    }
 }
 
 YangNode *yangGetFirstChildNode(YangNode *yangNodePtr) {
@@ -132,11 +137,6 @@ YangNode *yangGetFirstChildNode(YangNode *yangNodePtr) {
     if (!nodePtr) return NULL;
     nodePtr = nodePtr->firstChildPtr;
 
-    if (ONLY_ORIGINAL) {
-        while (nodePtr && nodePtr->nodeType != YANG_NODE_ORIGINAL) {
-            nodePtr = nodePtr->nextSiblingPtr;
-        }
-    }
     if (!nodePtr) {
         return NULL;
     } else {
@@ -148,11 +148,6 @@ YangNode *yangGetNextSibling(YangNode *yangNodePtr) {
     _YangNode *nodePtr = (_YangNode *)yangNodePtr;
     if (!nodePtr) return NULL;
     nodePtr = nodePtr->nextSiblingPtr;
-    if (ONLY_ORIGINAL) {
-        while (nodePtr && nodePtr->nodeType != YANG_NODE_ORIGINAL) {
-            nodePtr = nodePtr->nextSiblingPtr;
-        }
-    }
     if (!nodePtr) {
         return NULL;
     } else {
@@ -161,15 +156,33 @@ YangNode *yangGetNextSibling(YangNode *yangNodePtr) {
 }
 
 YangNode *yangGetFirstModule(void) {
-    return &(smiHandle->firstYangModulePtr->export);
+    if (ONLY_ORIGINAL) {
+        return &((getModuleInfo(smiHandle->firstYangModulePtr)->originalModule)->export);
+    } else {
+        return &(smiHandle->firstYangModulePtr->export);
+    }
 }
 
 YangNode *yangGetNextModule(YangNode *yangModulePtr) {
-    _YangNode *nodePtr = (_YangNode *)yangModulePtr;
-    if (nodePtr->nextSiblingPtr) {
-        return &(nodePtr->nextSiblingPtr->export);    
+    _YangNode *modulePtr = (_YangNode *)yangModulePtr;
+    if (ONLY_ORIGINAL) {
+        _YangNode* cur = smiHandle->firstYangModulePtr;
+        while (cur) {
+            if (getModuleInfo(cur)->originalModule == modulePtr) break;
+            cur = cur->nextSiblingPtr;
+        }    
+
+        if (cur && cur->nextSiblingPtr) {
+            return &(getModuleInfo(cur->nextSiblingPtr)->originalModule->export);    
+        } else {
+            return NULL;
+        }
     } else {
-        return NULL;
+        if (modulePtr && modulePtr->nextSiblingPtr) {
+            return &(modulePtr->nextSiblingPtr->export);    
+        } else {
+            return NULL;
+        }        
     }
 }
 

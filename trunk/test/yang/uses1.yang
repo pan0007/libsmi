@@ -19,7 +19,7 @@ module uses1 {
 			 type string;
 		}
 		uses grouping1:target {
-			refine port {
+			refine uses1:port {
 				default 80;
 			}
 		}

@@ -774,13 +774,13 @@ static Error errors[] = {
       "bad value '%s' (must be %s)", NULL},
     { 2, ERR_DUPLICATED_KEY, "duplicated-key", 
       "the key '%s' must not be listed more than once", NULL},
-    { 2, ERR_INVALIDE_KEY_REFERENCE, "invalide-key-reference", 
+    { 2, ERR_INVALID_KEY_REFERENCE, "invalid-key-reference", 
       "the key '%s' does not reference an existing leaf", NULL},
-    { 2, ERR_EMPTY_KEY, "invalide-key-reference", 
+    { 2, ERR_EMPTY_KEY, "invalid-key-reference", 
       "the type empty cannot be part of a key, used by leaf '%s'", NULL},
-    { 2, ERR_INVALID_KEY_LEAF_CONFIG_VALUE, "invalide-key-leaf-config-value", 
+    { 2, ERR_INVALID_KEY_LEAF_CONFIG_VALUE, "invalid-key-leaf-config-value", 
       "the key leaf '%s' in list '%s' has not the same value for its 'config'  as the list itself.", NULL},
-    { 2, ERR_INVALIDE_UNIQUE_REFERENCE, "invalide-unique-reference", 
+    { 2, ERR_INVALID_UNIQUE_REFERENCE, "invalid-unique-reference", 
       "the unique element '%s' does not reference an existing leaf", NULL},
     { 2, ERR_DUPLICATED_LEAF_IN_UNIQUE, "duplicated-key", 
       "the leaf '%s' occurs more than once in the unique expression", NULL},
@@ -797,9 +797,9 @@ static Error errors[] = {
     { 2, ERR_DATA_DEF_REQUIRED, "data-def-required", 
     "the %s requires at least one data definition statement as a child", NULL},
     { 2, ERR_AUGMENTATION_BY_MANDATORY_NODE, "augmentation-by-mandatory-node", 
-    "the target node of the augmentation is in another module, the nodes added by the augmentation MUST NOT be mandatory nodes.", NULL},    
-    
-
+    "the target node of the augmentation is in another module, the nodes added by the augmentation MUST NOT be mandatory nodes", NULL},    
+    { 2, ERR_INVALID_REFINE, "augmentation-by-mandatory-node", 
+    "'%s' node '%s' cannot be refined with '%s'", NULL},
     { 0, 0, NULL, NULL, NULL }
 };
 

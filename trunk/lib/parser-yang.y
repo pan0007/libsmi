@@ -1750,6 +1750,9 @@ usesSubstatement:	descriptionStatement
 
 refineStatement:    refineKeyword string
             {
+                if (!isDescendantSchemaNodeid($2)) {
+                    smiPrintError(thisParserPtr, ERR_DESCEDANT_FORM, $2);
+                }
                 node = addYangNode($2, YANG_DECL_REFINE, topNode());
                 pushNode(node);
             }
