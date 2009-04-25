@@ -498,7 +498,7 @@ yangFile:		moduleStatement
 moduleStatement:	moduleKeyword identifierStr
 			{
                 currentParser = thisParserPtr;
-                thisParserPtr->yangModulePtr = findYangModuleByName($2);
+                thisParserPtr->yangModulePtr = findYangModuleByName($2, NULL);
 			    if (!thisParserPtr->yangModulePtr) {
                     thisParserPtr->yangModulePtr =  addYangNode($2, YANG_DECL_MODULE, NULL);
                     
@@ -537,7 +537,7 @@ moduleStatement:	moduleKeyword identifierStr
 submoduleStatement:	submoduleKeyword identifierStr
 			{
                 currentParser = thisParserPtr;
-                thisParserPtr->yangModulePtr = findYangModuleByName($2);
+                thisParserPtr->yangModulePtr = findYangModuleByName($2, NULL);
 			    if (!thisParserPtr->yangModulePtr) {
                     thisParserPtr->yangModulePtr =  addYangNode($2, YANG_DECL_SUBMODULE, NULL);
                     

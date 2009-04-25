@@ -117,7 +117,7 @@ const char* statusKeywords[] = {  "default",
  */
 int yangIsModule(const char* modulename) {
     Module	      *modulePtr;
-    modulePtr = findModuleByName(modulename);
+    modulePtr = findYangModuleByName(modulename, NULL);
     
     if (modulePtr) return 0;
 
@@ -126,9 +126,9 @@ int yangIsModule(const char* modulename) {
 
 YangNode* yangGetModule(char *modulename) {
     if (ONLY_ORIGINAL) {
-        return &((getModuleInfo(findYangModuleByName(modulename))->originalModule)->export);
+        return &((getModuleInfo(findYangModuleByName(modulename, NULL))->originalModule)->export);
     } else {
-        return &(findYangModuleByName(modulename)->export);
+        return &(findYangModuleByName(modulename, NULL)->export);
     }
 }
 

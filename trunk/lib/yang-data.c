@@ -86,7 +86,7 @@ const char* yangBuiltInTypeNames[] = {  "binary",
 };
 
 
-YangBuiltInTypes getBuiltInTypeName(char *name) {
+YangBuiltInTypes getBuiltInTypeName(const char *name) {
     int i;
     for (i = 0; i <  builtInTypeCount; i++) {
         if (!strcmp(yangBuiltInTypeNames[i], name)) {
@@ -207,13 +207,22 @@ _YangModuleInfo* getModuleInfo(_YangNode* module) {
  */
 
 
-_YangNode *findYangModuleByName(const char *modulename)
+_YangNode *findYangModuleByName(const char *modulename, char* revision)
 {
     _YangNode	*modulePtr;
     
     for (modulePtr = smiHandle->firstYangModulePtr; modulePtr; modulePtr = modulePtr->nextSiblingPtr) {
         if ((modulePtr->export.value) && !strcmp(modulePtr->export.value, modulename)) {
-            return (modulePtr);
+            if (!revision) {
+                return (modulePtr);
+            } else {
+                _YangNode* revisionNodePtr = findChildNodeByType(modulePtr, YANG_DECL_REVISION);
+                if (revisionNodePtr) {
+                    if (!strcmp(revision, revisionNodePtr->export.value)) {
+                        return modulePtr;
+                    }
+                }
+            }
         }
     }
     return (NULL);
@@ -482,41 +491,65 @@ _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPt
  *----------------------------------------------------------------------
  */
 
-_YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
+
+_YangNode *loadYangModule(const char *modulename, const char * revision, Parser *parserPtr)
 {
     Parser	    parser;
     Parser      *parentParserPtr;
     char	    *path = NULL;
     SmiLanguage lang = 0;
     FILE	    *file;
+    char* name[2], *revisionPart = NULL;
+    int index = 1;
 
-    path = getModulePath(modulename);
+    if (revision) {
+        smiAsprintf(&name[0], "%s%s", modulename, "%s");
+        smiAsprintf(&revisionPart, ".%s", revision);
+        index++;
+    }
+    name[index - 1] = smiStrdup(modulename);
+    
+    int nameIndex = 0;
+    while (nameIndex < index) {        
+        path = getModulePath(name[nameIndex]);
+        if (path && revision) {
+            smiAsprintf(&path, "%s%s", path, revisionPart);
+        }
+        /* module can not be located, the last try */
+        if (!path && parserPtr && parserPtr->path) {
+            /*  searching for the module at the path where the previous module was found
+                it's used by the imported modules */
+            int slashIndex = -1;
+            int i = 0;
+            for (i = strlen(parserPtr->path) - 1; i + 1; i--)
+                if (parserPtr->path[i] == DIR_SEPARATOR) {
+                    slashIndex = i;
+                    break;
+                }
+            if (slashIndex == -1) {
+                smiAsprintf(&path, "%s%s", name[nameIndex], ".yang");
+            } else {
+                char *dir = (char*) smiMalloc(slashIndex + 2);
+                dir[slashIndex + 1] = 0;
+                strncpy(dir, parserPtr->path, slashIndex + 1);
 
-    /* module can not be located, the last try */
-    if (!path && parserPtr && parserPtr->path) {
-        /*  searching for the module at the path where the previous module was found
-            it's used by the imported modules */
-        int slashIndex = -1;
-        int i = 0;
-        for (i = strlen(parserPtr->path) - 1; i + 1; i--)
-            if (parserPtr->path[i] == DIR_SEPARATOR) {
-                slashIndex = i;
+                smiAsprintf(&path, "%s%s%s", dir, name[nameIndex], ".yang");
+
+                smiFree(dir);
+            }
+            if (path && revision) {
+                smiAsprintf(&path, path, revisionPart);
+            }
+        }
+        if (path) {
+            file = fopen(path, "r");
+            if (file) {
                 break;
             }
-        if (slashIndex == -1) {
-            smiAsprintf(&path, "%s%s", modulename, ".yang");
-        } else {
-            char *dir = (char*) smiMalloc(slashIndex + 2);
-            dir[slashIndex + 1] = 0;
-            strncpy(dir, parserPtr->path, slashIndex + 1);
-
-            smiAsprintf(&path, "%s%s%s", dir, modulename, ".yang");
-            
-            // TODO: implement path extraction and construction 
-            smiFree(dir);
-        }
+        }        
+        nameIndex++;
     }
-    
+
     if (!path) {
         smiPrintError(parserPtr, ERR_MODULE_NOT_FOUND, modulename);
         return NULL;
@@ -554,6 +587,7 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
 	parser.firstStatementLine       = 0;
 	parser.firstNestedStatementLine = 0;
 	parser.firstRevisionLine        = 0;
+    parser.yangModulePtr            = NULL;
 	parser.file			= file;
 
 	/*
@@ -574,14 +608,16 @@ _YangNode *loadYangModule(const char *modulename, Parser *parserPtr)
 	fclose(parser.file);
 	smiFree(path);
 	smiHandle->parserPtr = parentParserPtr;
+
     if (parser.yangModulePtr) {
         ((_YangModuleInfo*)(parser.yangModulePtr->info))->conformance = parser.modulePtr->export.conformance;
-    }
+    }  
 	return parser.yangModulePtr;
 #else
 	smiPrintError(parserPtr, ERR_YANG_NOT_SUPPORTED, path);
 	smiFree(path);
     fclose(file);
+   
 	return NULL;
 #endif
 
@@ -673,15 +709,23 @@ void addImportedModule(_YangNode *importNode, _YangNode *importedModule) {
  *----------------------------------------------------------------------
  */
 _YangNode *externalModule(_YangNode *importNode) {
-    _YangNode *importedModule = findYangModuleByName(importNode->export.value);
+    /* Check whether the imported module has been already loaded */
+    _YangNode *revisionNodePtr = findChildNodeByType(importNode, YANG_DECL_REVISION);
+    char* revision = NULL;
+    if (revisionNodePtr) {
+        revision = revisionNodePtr->export.value;
+    }
+    _YangNode *importedModule = findYangModuleByName(importNode->export.value, revision);
 
+    /* Check whether there is no cyclic import chain */
     if (importedModule && ((_YangModuleInfo*)importedModule->info)->parsingState == YANG_PARSING_IN_PROGRESS) {
         smiPrintError(currentParser, ERR_CYCLIC_IMPORTS, importNode->modulePtr->export.value, importedModule->export.value);
     }
     
+    /* If the module has not been found, lets try to load it */
     if(!importedModule) {
         Parser* tempParser = currentParser;
-        importedModule = loadYangModule(importNode->export.value, currentParser);
+        importedModule = loadYangModule(importNode->export.value, revision, currentParser);
         currentParser = tempParser;
     }
   

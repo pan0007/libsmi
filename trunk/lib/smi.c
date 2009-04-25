@@ -406,7 +406,7 @@ int smiIsLoaded(const char *module)
     return isInView(module);
 }
 
-extern _YangNode *loadYangModule(const char *modulename, Parser *parserPtr);
+extern _YangNode *loadYangModule(const char *modulename, const char *revision, Parser *parserPtr);
 
 char *smiLoadModule(const char *module)
 {
@@ -415,7 +415,7 @@ char *smiLoadModule(const char *module)
     SmiLanguage lang = guessLanguage(module);
     
     if (lang == SMI_LANGUAGE_YANG) {
-        _YangNode *yangModulePtr = loadYangModule(module, NULL);;
+        _YangNode *yangModulePtr = loadYangModule(module, NULL, NULL);
         if (yangModulePtr) {
             return yangModulePtr->export.value;
         } else {
