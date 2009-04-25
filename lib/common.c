@@ -55,8 +55,7 @@ char* getModulePath(const char *modulename) {
         for (dir = strtok(smipath, sep);
              dir; dir = strtok(NULL, sep)) {
             for (i = 0; ext[i]; i++) {
-                smiAsprintf(&path, "%s%c%s%s", dir, DIR_SEPARATOR,
-                        modulename, ext[i]);
+                smiAsprintf(&path, "%s%c%s%s", dir, DIR_SEPARATOR, modulename, ext[i]);
                 if (! access(path, R_OK)) {
                     break;
                 }
@@ -96,8 +95,7 @@ char* getModulePath(const char *modulename) {
         char *argv[4];
         char *cmd;
         int  status;
-        smiAsprintf(&path, "%s%c%s",
-                smiHandle->cache, DIR_SEPARATOR, modulename);
+        smiAsprintf(&path, "%s%c%s", smiHandle->cache, DIR_SEPARATOR, modulename);
         if (access(path, R_OK)) {
             smiAsprintf(&cmd, "%s %s", smiHandle->cacheProg, modulename);
             pid = fork();

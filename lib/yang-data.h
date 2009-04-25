@@ -123,7 +123,7 @@ typedef struct _YangGroupingInfo {
     _YangParsingState state;
 } _YangGroupingInfo;
 
-_YangNode *findYangModuleByName(const char *modulename);
+_YangNode *findYangModuleByName(const char *modulename, char* revision);
 
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr);
 
@@ -143,7 +143,7 @@ _YangNode* resolveReference(_YangNode *currentNodePtr, YangDecl nodeKind, char* 
 
 _YangNode *externalModule(_YangNode *importNode);
 
-YangBuiltInTypes getBuiltInTypeName(char *name);
+YangBuiltInTypes getBuiltInTypeName(const char *name);
 /*
  * YangNode fields setters
  */
