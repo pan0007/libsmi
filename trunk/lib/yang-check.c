@@ -12,6 +12,7 @@
  * @(#) $Id: check.c 10751 2008-11-06 22:05:48Z schoenw $
  */
 
+
 #include <config.h>
 
 #include <string.h>
@@ -150,7 +151,8 @@ typedef enum YangIdentifierGroup {
      YANG_IDGR_IDENTITY,
      YANG_IDGR_TYPEDEF,
      YANG_IDGR_GROUPING,
-     YANG_IDGR_NODE,     
+     YANG_IDGR_NODE,
+     YANG_IDGR_CASE
 } YangIdentifierGroup;
 
 int getIdentifierGroup(YangDecl kind) {
@@ -173,6 +175,8 @@ int getIdentifierGroup(YangDecl kind) {
                kind == YANG_DECL_NOTIFICATION ||
                kind == YANG_DECL_ANYXML) {
         return YANG_IDGR_NODE;
+    } else if (kind == YANG_DECL_CASE) {
+        return YANG_IDGR_CASE;
     }
     return YANG_IDGR_NONE;
 }
@@ -532,10 +536,9 @@ void uniqueNames(_YangNode* nodePtr) {
         if (yig > YANG_IDGR_NONE) {            
             if (!validateNodeUniqueness(cur)) {
                 if (cur->nodeType == YANG_NODE_EXPANDED_USES) {
-                    smiPrintError(currentParser, ERR_DUPLICATED_NODE_WHILE_GROUPING_INSTANTIATION, cur->export.value);
-                } 
-                if (cur->nodeType == YANG_NODE_EXPANDED_AUGMENT) {
-                    smiPrintError(currentParser, ERR_DUPLICATED_NODE_WHILE_AUGMENT_INSTANTIATION, cur->export.value);
+                    smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_NODE_WHILE_GROUPING_INSTANTIATION, cur->line, cur->export.value);
+                } else if (cur->nodeType == YANG_NODE_EXPANDED_AUGMENT) {
+                    smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_NODE_WHILE_AUGMENT_INSTANTIATION, cur->line, cur->export.value);
                 } else {
                     smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_IDENTIFIER, cur->line, cur->export.value);
                 }
@@ -705,7 +708,17 @@ void expangAugments(_YangNode* node) {
             if (!strcmp(getModuleInfo(targetNodePtr->modulePtr)->prefix, getModuleInfo(node->modulePtr)->prefix)) {
                 isAnotherModule = 0;
             }
-            while (child) {
+            while (child) {                
+                int isAllowed = 1;
+                if (isAnotherModule) {
+                    YangIdentifierGroup ig = getIdentifierGroup(child->export.nodeKind);
+                    if (ig != YANG_IDGR_NONE && countChildNodesByTypeAndValue(targetNodePtr, NULL, ig, child->export.value)) {
+                        smiPrintErrorAtLine(currentParser, ERR_DUPLICATED_NODE_WHILE_AUGMENT_INSTANTIATION, child->line, child->export.value);
+                        child = child->nextSiblingPtr;
+                        continue;
+                    }
+                }
+                
                 /*
                  * If the target node is a container, list, case, input, output, or notification node, 
                  * the "container", "leaf", "list", "leaf-list", "uses", and "choice" statements can be used within the "augment" statement. 
@@ -717,11 +730,15 @@ void expangAugments(_YangNode* node) {
                     if (targetNodePtr->export.nodeKind == YANG_DECL_CHOICE) {
                         smiPrintErrorAtLine(currentParser, ERR_NODE_KIND_NOT_ALLOWED, child->line, yandDeclKeyword[child->export.nodeKind], child->export.value, yandDeclKeyword[targetNodePtr->export.nodeKind], targetNodePtr->export.value);
                     }
+                    /*
+                     *  If the target node is in the external module we should check whether adding this node does not break uniqueness
+                     *  (because all imported modules have been already validated)
+                     */
                     copySubtree(targetNodePtr, child, YANG_NODE_EXPANDED_AUGMENT, isAnotherModule);
                 } else if (child->export.nodeKind == YANG_DECL_CASE) {
                     if (targetNodePtr->export.nodeKind != YANG_DECL_CHOICE) {
                         smiPrintErrorAtLine(currentParser, ERR_NODE_KIND_NOT_ALLOWED, child->line, yandDeclKeyword[child->export.nodeKind], child->export.value, yandDeclKeyword[targetNodePtr->export.nodeKind], targetNodePtr->export.value);
-                    }                    
+                    }
                     copySubtree(targetNodePtr, child, YANG_NODE_EXPANDED_AUGMENT, isAnotherModule);
                 }
                 child = child->nextSiblingPtr;
@@ -895,13 +912,16 @@ void semanticAnalysis(_YangNode *module) {
     getModuleInfo(module)->originalModule = copyModule(module);
     initMap();
     resolveReferences(module);
+
     expandGroupings(module);
     
     expangAugments(module);
+    
     validateConfigProperties(module, 1);
     
     validateDefaultStatements(module);
 
     validateLists(module);
+    
     uniqueNames(module);
 }

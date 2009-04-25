@@ -3,7 +3,8 @@ augment.yang:22: case 'test' is not allowed as a child node of the target contai
 augment.yang:26: leaf 'test' is not allowed as a child node of the target choice 'test-choice'
 as:d' can not be resolved
 as:tets' can not be resolved
-augment.yang:70: augment instantiotion causes duplication of identifier 'ifIndex'
+augment.yang:51: augment instantiotion causes duplication of identifier 'ifIndex'
 ifIndex' must be either a  container, list, choice, case, input, output, or notification node.
 ifEntry2' can not be resolved
+augment-import.yang:11: augment instantiotion causes duplication of identifier 'ifEntry'
 as:test' can not be resolved
