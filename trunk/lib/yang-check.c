@@ -20,7 +20,6 @@
 #include <ctype.h>
 #include <sys/types.h>
 
-#include "yang-data.h"
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
@@ -36,7 +35,6 @@
 #include "yang-check.h"
 #include "parser-smi.tab.h"
 #include "parser-yang.tab.h"
-#include "yang-data.h"
 
 
 #define SMI_EPOCH	631152000	/* 01 Jan 1990 00:00:00 */ 
@@ -549,6 +547,32 @@ void uniqueNames(_YangNode* nodePtr) {
     }
 }
 
+/*
+ *  Should be reimplemented in more efficient way by using some appropriate datastructures, like HashTable
+ */
+void uniqueSubmoduleDefinitions(_YangNode* modulePtr) {
+    /* validate name uniqueness of the top level definitions in all submodules */
+    _YangNodeList* submodulePtr = ((_YangModuleInfo*)modulePtr->info)->submodules, *firstSubmodulePtr;
+    firstSubmodulePtr = submodulePtr;
+    while (submodulePtr) {
+        _YangNode* curNodePtr = submodulePtr->nodePtr->firstChildPtr;
+        while (curNodePtr) {
+            YangIdentifierGroup ig = getIdentifierGroup(curNodePtr->export.nodeKind);
+            if (ig > YANG_IDGR_NONE) {
+               _YangNodeList* sPtr = firstSubmodulePtr;
+                while (sPtr != submodulePtr) {
+                    if (countChildNodesByTypeAndValue(sPtr->nodePtr, curNodePtr, ig, curNodePtr->export.value)) {
+                        smiPrintErrorAtLine(((Parser*)getModuleInfo(submodulePtr->nodePtr)->parser), ERR_IDENTIFIER_DEFINED_IN_OTHER_SUBMODLE, curNodePtr->line, curNodePtr->export.value, sPtr->nodePtr->export.value);
+                    }
+                    sPtr = sPtr->next;
+                }
+            }
+            curNodePtr = curNodePtr->nextSiblingPtr;
+        }        
+        submodulePtr= submodulePtr->next;
+    }   
+}
+
 int map[65];
 
 void initMap() {
@@ -924,4 +948,6 @@ void semanticAnalysis(_YangNode *module) {
     validateLists(module);
     
     uniqueNames(module);
+    
+    uniqueSubmoduleDefinitions(module);
 }

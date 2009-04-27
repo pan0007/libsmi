@@ -800,6 +800,8 @@ static Error errors[] = {
     "the target node of the augmentation is in another module, the nodes added by the augmentation MUST NOT be mandatory nodes", NULL},    
     { 2, ERR_INVALID_REFINE, "augmentation-by-mandatory-node", 
     "'%s' node '%s' cannot be refined with '%s'", NULL},
+    { 2, ERR_IDENTIFIER_DEFINED_IN_OTHER_SUBMODLE, "duplicated-identifier", 
+      "identifier '%s' is already defined in the submodule '%s'", NULL},     
     { 0, 0, NULL, NULL, NULL }
 };
 

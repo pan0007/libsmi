@@ -15,9 +15,6 @@
 #include "yang-data.h"
 
 
-#include "yang-data.h"
-
-
 #include <config.h>
 
 #include "smi.h"
@@ -494,7 +491,7 @@ _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPt
 
 _YangNode *loadYangModule(const char *modulename, const char * revision, Parser *parserPtr)
 {
-    Parser	    parser;
+    Parser	    *parser = smiMalloc(sizeof(Parser));
     Parser      *parentParserPtr;
     char	    *path = NULL;
     SmiLanguage lang = 0;
@@ -555,7 +552,7 @@ _YangNode *loadYangModule(const char *modulename, const char * revision, Parser 
         return NULL;
     }
 
-    parser.path			= path;
+    parser->path			= path;
     file = fopen(path, "r");
     if (! file) {
         smiPrintError(parserPtr, ERR_OPENING_INPUTFILE, path, strerror(errno));
@@ -573,46 +570,45 @@ _YangNode *loadYangModule(const char *modulename, const char * revision, Parser 
 
 #ifdef BACKEND_YANG
 	parentParserPtr = smiHandle->parserPtr;
-	smiHandle->parserPtr = &parser;
+	smiHandle->parserPtr = parser;
     /* 
      *  Initialization of the parser;
      *  In YANG we don't use most of these fields of the Parser
      */
-	parser.path			= path;
-	parser.flags			= smiHandle->flags;
-	parser.modulePtr		= NULL;
-	parser.complianceModulePtr	= NULL;
-	parser.capabilitiesModulePtr	= NULL;
-	parser.currentDecl              = SMI_DECL_UNKNOWN;
-	parser.firstStatementLine       = 0;
-	parser.firstNestedStatementLine = 0;
-	parser.firstRevisionLine        = 0;
-    parser.yangModulePtr            = NULL;
-	parser.file			= file;
+	parser->path			= path;
+	parser->flags			= smiHandle->flags;
+	parser->modulePtr		= NULL;
+	parser->complianceModulePtr	= NULL;
+	parser->capabilitiesModulePtr	= NULL;
+	parser->currentDecl              = SMI_DECL_UNKNOWN;
+	parser->firstStatementLine       = 0;
+	parser->firstNestedStatementLine = 0;
+	parser->firstRevisionLine        = 0;
+    parser->yangModulePtr            = NULL;
+	parser->file			= file;
 
-	/*
-	 * Initialize a root Node for pending (forward referenced) nodes.
-	 */
-	parser.pendingNodePtr = addNode(NULL, 0, NODE_FLAG_ROOT, NULL);
     
-	if (yangEnterLexRecursion(parser.file) < 0) {
-	    smiPrintError(&parser, ERR_MAX_LEX_DEPTH);
-	    fclose(parser.file);
+	if (yangEnterLexRecursion(parser->file) < 0) {
+	    smiPrintError(parser, ERR_MAX_LEX_DEPTH);
+	    fclose(parser->file);
 	}
 	smiDepth++;
-	parser.line			= 1;
-	yangparse((void *)&parser);
-	smiFree(parser.pendingNodePtr);
+	parser->line			= 1;
+	yangparse(parser);
 	yangLeaveLexRecursion();
 	smiDepth--;
-	fclose(parser.file);
-	smiFree(path);
+	fclose(parser->file);
 	smiHandle->parserPtr = parentParserPtr;
 
-    if (parser.yangModulePtr) {
-        ((_YangModuleInfo*)(parser.yangModulePtr->info))->conformance = parser.modulePtr->export.conformance;
-    }  
-	return parser.yangModulePtr;
+    if (parser->yangModulePtr) {
+        ((_YangModuleInfo*)(parser->yangModulePtr->info))->conformance = parser->modulePtr->export.conformance;
+        ((_YangModuleInfo*)(parser->yangModulePtr->info))->parser = parser;
+        return parser->yangModulePtr;
+    } else {
+        smiFree(path);
+        smiFree(parser);
+        return NULL;
+    }
 #else
 	smiPrintError(parserPtr, ERR_YANG_NOT_SUPPORTED, path);
 	smiFree(path);
@@ -802,6 +798,8 @@ void freeYangNode(_YangNode *nodePtr) {
             if (nodeKind == YANG_DECL_MODULE || nodeKind == YANG_DECL_SUBMODULE) {
                 /* Free original tree */
                 freeYangNode(getModuleInfo(nodePtr)->originalModule);
+                smiFree(((Parser*)getModuleInfo(nodePtr)->parser)->path);
+                smiFree(getModuleInfo(nodePtr)->parser);
                 
                 getModuleInfo(nodePtr)->originalModule = NULL;
                 _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;

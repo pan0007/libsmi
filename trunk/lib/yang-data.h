@@ -110,6 +110,7 @@ typedef struct _YangModuleInfo {
     struct _YangNode     *originalModule;
     struct _YangNodeList *submodules;
     struct _YangImportList *imports;
+    void                   *parser;
 } _YangModuleInfo;
 
 typedef struct _YangIdentifierRefInfo {

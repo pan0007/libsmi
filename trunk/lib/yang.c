@@ -116,7 +116,7 @@ const char* statusKeywords[] = {  "default",
  * Determines whether a module with a certain name is a YANG module
  */
 int yangIsModule(const char* modulename) {
-    Module	      *modulePtr;
+    _YangNode   *modulePtr;
     modulePtr = findYangModuleByName(modulename, NULL);
     
     if (modulePtr) return 0;

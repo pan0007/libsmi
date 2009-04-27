@@ -10,3 +10,4 @@ unique1.yang:19: identifier 'host-name' is already defined within the namespace
 unique1.yang:24: identifier 'interface' is already defined within the namespace
 unique1.yang:31: identifier 'ifType' is already defined within the namespace
 unique1.yang:37: identifier 'my-str2' is already defined within the namespace
+unique2.yang:21: identifier 'my-str' is already defined in the submodule 'unique3'
