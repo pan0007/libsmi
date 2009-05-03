@@ -1,0 +1,115 @@
+\documentclass[conference]{IEEEtran}
+\begin{document}
+\title{YANG Language Parser for Libsmi}
+\author{\IEEEauthorblockN{Siarhei Kuryla}
+\IEEEauthorblockA{Jacobs University Bremen\\
+Spring Semester 2009\\
+Supervisor: Prof. Dr. Juergen Schoenwaelder}
+}
+
+% make the title area
+\maketitle
+
+\begin{abstract}
+NETCONF is a network management protocol developed in the IETF by the Netconf working group  which provides a simple mechanism through which a network device can be managed, configuration data information can be retrieved, and new configuration data can be uploaded and manipulated. YANG is a data modeling language used to model configuration and state data manipulated by the NETCONF protocol, NETCONF remote procedure calls, and NETCONF notifications. The YANG language is currently being developed by the IETF NETCONF Data Modeling Language Working Group. The libsmi is a library which provides a C API to access network management data model definitions written in various versions of the SMI (Structure of Management Information). The goal of this project is to extend a libsmi parser for the YANG data modeling language in order to make it compliant with the latest version of the YANG language.
+\end{abstract}
+
+\section{Introduction}
+YANG is a data modeling language used to model configuration and state data manipulated by the NETCONF protocol, NETCONF remote procedure calls, and NETCONF notifications. Today, the NETCONF protocol \cite{bib1} lacks a standardized way to create data models. Instead, vendors are forced to use proprietary solutions. In order for NETCONF to be a interoperable protocol, models must be defined in a vendor-neutral way. YANG provides the language and rules for defining such models for use with NETCONF. 
+
+YANG is posed as simple and easy to learn because of its trivial and regular syntax. This language is NETCONF-specific language designed to do what it needs to do well and it does not try to compete with XSD. YANG is fully modular and it enables development of certain parts of the model without influencing those parts that need no change. The YANG language is still under develoment and the latest draft version of this language was released on April 20, 2009 
+
+Libsmi is a C library which provides a convenient API for handling network management data model definitions written in various versions of the SMI. The project's main task is to create a YANG parser for the library, update it's inner data structures to support the new language, and extend the API to support the new features of the YANG language.
+
+\section{Motivation and problem statement}
+The YANG language is still being developed and it is not yet widely used. Availability of convenient programming tools which support this modeling language might accelerate its adoption. Libsmi is  a portable C library that currently provides an API for access to various versions of the SMI. This library hides parsing details providing accessing SMI definitions for applications. Libsmi is a potential tool to be extented to support the YANG language. 
+
+When I was starting working on the project there was already an incomplete parser implementation for libsmi based on early version of the YANG specification  \cite{bib2}. The implementation was incomplete and suffered from a number of problems: 
+\begin{itemize}
+	\item the lexical analyser was implemented inaccurately. There were various problems with qouitings, line counting, string concatenation and some general rules were defined wrong;
+	\item the syntactic analyser was implemented inaccurately. The implementation did not cover the whole grammar of the YANG language and there were many collisions with the specification;
+	\item the implementation was incomplete: some language statements were stored to internal datastructures, others were not;
+	\item the implementation tried to retrofit the YANG datamodel into existing libsmi data structures and API functions. However it caused many problems, making the parser much more complicated. It was confusing what functions we should use to handle a particular language definition, what data structure and members of the data structure correspond to the definition;
+	\item there was no semantic analysis. References to groupings, types, features, and identities were not resolved, uniqueness of identifiers was not validated, modules knew nothing about definitions in their submodules.
+\end{itemize}
+
+This project aims at completing the parser for the YANG data modeling language in order to make it compliant with the latest version of the YANG language. At the time when the project was starting the available version of the specification was draft-ietf-netmod-yang-03 \cite{bib3} and it is used as a basis for the entire project.
+
+\section{Libsmi library}
+Supported languages
+C
+Tools
+
+\section{YANG language parser}
+The parsing of a YANG module is accomplished over several phases, which includes of the following:
+\subsection{Lexical analysis}
+What it is going on here
+Flex
+
+\subsection{Syntax analysis}
+What is going on here
+Bison
+
+Grammar phase:
+Verifies that the statement hierarchy is correct and that all arguments are of correct type, complex arguments are parsed and saved in statement-specific variables
+ 
+\subsection{Semantic analysis}
+What is going on here
+2. import and include phase:tries to load each imported and included (sub)module: circular dependency, and belongs-to parameter\\
+3. uniqueness of identifiers depends on  the context; (the whole hierarchy of submodules) \\
+4. uniqueness of defined prefixes; \\
+4. reference validation (whetere there is an element which is reffered from somewhere);\\
+4. typedef validation => circular dependency of the user defined types\\
+5. type validation => whether the right restrictions are applied to the type, it requires individual validation for every type, default values;\\
+6. whether default values of leafs correspond to smth\\
+7. resolve extension, and check whether the argement definition is present;\\
+8. uniqueness of all statement within ALL CASES in a choice (we are interested only in anyxml);\\
+
+\section{Testing}
+
+\section{Related work}
+Pyang \cite{bib8} is a YANG validator, transformator and code generator, written in python. It can be used to validate YANG modules for correctness, to transform YANG modules into other formats such as YIN, DSDL and XSD, and to generate code from the module definitions. While working on the project I have been constantly using that tool to clarify vague parts of the YANG specification. At the same time I have been testing pyang and I have found a number of issues which I reported to the pyang bug tracking system. All reported issues are available at the following addresses:
+\begin{itemize}
+\item http://code.google.com/p/pyang/issues/detail?id=5
+\item http://code.google.com/p/pyang/issues/detail?id=6
+\item http://code.google.com/p/pyang/issues/detail?id=7
+\item http://code.google.com/p/pyang/issues/detail?id=8
+\item http://code.google.com/p/pyang/issues/detail?id=9
+\item http://code.google.com/p/pyang/issues/detail?id=10
+\item http://code.google.com/p/pyang/issues/detail?id=11
+\item http://code.google.com/p/pyang/issues/detail?id=12
+\item http://code.google.com/p/pyang/issues/detail?id=13
+\item http://code.google.com/p/pyang/issues/detail?id=14
+\item http://code.google.com/p/pyang/issues/detail?id=15
+\item http://code.google.com/p/pyang/issues/detail?id=17
+\end{itemize}
+
+\section{Conclusions}
+3. Semantic analysis:\\
+  3.A uniqueness
+	3.1. uniqueness (just for containers and leafs);\\
+	3.2. uniqueness (for typedefs and groupings);\\
+	3.3. uses expansion;\\
+	3.4. augment expansion;\\
+
+
+Grammar phase:
+Verifies that the statement hierarchy is correct and that all arguments are of correct type, complex arguments are parsed and saved in statement-specific variables
+
+
+\begin{thebibliography}{1}
+\bibitem[1]{bib1} R. Enns. RFC4741 NETCONF Configuration Protocol. Technical report, Network Working Group.,
+December 2006.
+\bibitem[2]{bib2} M. Bjorklund. YANG - A data modeling language for NETCONF draft-ietf-netmod-yang-02. Technical report, Network Working Group. February 2008.
+\bibitem[3]{bib3} M. Bjorklund. YANG - A data modeling language for NETCONF draft-ietf-netmod-yang-03. Technical report, Network Working Group. February 2009.
+\bibitem[4]{bib4} M. Bjorklund. YANG - A data modeling language for NETCONF draft-ietf-netmod-yang-05. Technical report, Network Working Group. April 2009.
+\bibitem[5]{bib5} flex - The fast lexical analyser. http://flex.sourceforge.net/, May 2009.
+\bibitem[6]{bib6} Bison - GNU parser generator. http://www.gnu.org/software/bison/, May 2009.
+\bibitem[7]{bib7} libsmi - A library to access SMI MIB Information. http://www.ibr.cs.tu-bs.de/projects/libsmi/, May 2009.
+\bibitem[8]{bib8} pyang - An extensible YANG validator and converter in python. http://code.google.com/p/pyang/, May 2009.
+
+\end{thebibliography}
+
+\end{document}
+
+
