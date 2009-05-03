@@ -169,31 +169,6 @@ char* getIdentifier(char* identifierRef) {
     return smiStrdup(colonIndex + 1);
 }
 
-
-
-/*static void
-checkTypes(Parser *parserPtr, Module *modulePtr)
-{
-    Type *typePtr;
-    
-    for(typePtr = modulePtr->firstTypePtr;
-	typePtr; typePtr = typePtr->nextPtr) {
-*/
-	/*
-	 * Complain about empty description clauses.
-	 */
-
-/*	if (! parserPtr->flags & SMI_FLAG_NODESCR
-	    && (! typePtr->export.description
-		|| ! typePtr->export.description[0])) {
-	    smiPrintErrorAtLine(parserPtr, ERR_EMPTY_DESCRIPTION, typePtr->line, typePtr->export.name);
-	}
-	
-	smiCheckNamedNumberRedefinition(parserPtr, typePtr);
-	smiCheckNamedNumberSubtyping(parserPtr, typePtr);
-    }
-}*/
-
 %}
 
 /*
