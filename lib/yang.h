@@ -143,16 +143,39 @@ typedef struct YangNode {
 /*
  * YANG API
  */
+/*
+ *  returns 'true' if the module with the modulename is a YANG module
+ */
 extern int yangIsModule(const char* modulename);
 
+/*
+ * returns a pointer to the struct YangNode for the module with the given name
+ * or NULL if the YANG module with the given has not been loaded
+ */
 extern YangNode *yangGetModule(char *modulename);
 
+/*
+ * returns a pointer to the struct YangNode that represents the first child node of the yangNodePtr node
+ * or NULL if that node does have child nodes.
+ */
 extern YangNode *yangGetFirstChildNode(YangNode *yangNodePtr);
 
+/*
+ * returns a pointer to the struct YangNode that represents the next sibling node of the yangNodePtr node
+ * or NULL if that node does have child nodes.
+ */
 extern YangNode *yangGetNextSibling(YangNode *yangNodePtr);
 
+/*
+ * returns a pointer to the struct YangNode that represents the first loaded YANG module
+ * or NULL if no one YANG module has been loaded.
+ */
 extern YangNode *yangGetFirstModule(void);
 
+/*
+ * returns a pointer to the struct YangNode that represents the YANG module
+ * loaded after the module yangModulePtr or NULL there is no module after it.
+ */
 extern YangNode *yangGetNextModule(YangNode *yangModulePtr);
 
 int yangIsTrueConf(YangConfig conf);
