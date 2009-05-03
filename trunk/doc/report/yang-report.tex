@@ -144,12 +144,18 @@ All YANG API functions have the \texttt{yang} prefix:
 \item \texttt{YangNode *yangGetNextModule(YangNode *yangModulePtr)} returns a pointer to the struct \texttt{YangNode} that represents the YANG module loaded after the given module \texttt{yangModulePtr} or \texttt{NULL} if there is no YANG module loaded after it;
 \item \texttt{YangNode *yangGetFirstChildNode(YangNode *yangNodePtr)} returns a pointer to the struct \texttt{YangNode} that represents the first child node of the \texttt{yangNodePtr} node or \texttt{NULL} if that node does have child nodes;
 \item \texttt{YangNode *yangGetNextSibling(YangNode *yangNodePtr)} returns a pointer to the struct \texttt{YangNode} that represents next sibling node of the \texttt{yangNodePtr} node or \texttt{NULL} if there is no next sibling node;
+\item \texttt{int yangIsTrueConf(YangConfig conf)} returns 1 if the given \texttt{YangConfig} value is true and 0 otherwise.
 \end{itemize}
+
+\section{Smidump driver}
+Smidump is a program which comes with the libsmi library distribution and allows to dump the content of a MIB module in various language formats. In the course of the project the YANG driver for smidump was implemented. It allows to print a YANG module stored in memory back to text format YANG definitions. Currently it is not very useful, because there is no converter from any other format to YANG and the driver might be used only to dump YANG modules. But it might be employed for testing of the YANG parser.
+
+The file \texttt{tool/dump-yang-sk.c} contains the implementation of the driver, which traverses the entire module node hierarchy and serializes all nodes. The driver is registered with the \texttt{yang-sk} name.
 
 \section{Testing}
 From the very begging of the project  while implementing a new grammar rule or check I have been trying to create a test case that allows to validate that rule or check. Every test case consists of two files: an input file that contains YANG module definitions and the file with the expected output for that test case. In order to test the library on a certain test the smilint tool has to be executed on the test input file and the obtained output file has to be compared to the expected one. All test files are available in the folder 	\texttt{test/yang} of the library infrastructure.
 
-In order to automate the process of running all test cases at once there is a script available at \texttt{test/parser-yang.test}. Having changed the source code of the YANG parser, now it is easy to validate whether something has been broken by simple running all test cases.
+In order to automate the process of running all test cases at once there is a script available at \texttt{test/parser-yang.test}. Having changed the source code of the YANG parser, now it is easy to validate whether something has been broken by simple automated running of all test cases.
 
 \section{Related work}
 Pyang \cite{bib8} is a YANG validator, transformator and code generator, written in python. It can be used to validate YANG modules for correctness, to transform YANG modules into other formats such as YIN, DSDL and XSD, and to generate code from the module definitions. While working on the project I have been constantly using that tool to clarify vague parts of the YANG specification. At the same time I have been testing pyang and I have found a number of issues which I reported to the pyang bug tracking system. All reported issues are available at the following addresses:
