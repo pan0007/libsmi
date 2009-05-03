@@ -1,4 +1,5 @@
 \documentclass[conference]{IEEEtran}
+\usepackage{graphicx}    % needed for including graphics e.g. EPS, P
 \begin{document}
 \title{YANG Language Parser for Libsmi}
 \author{\IEEEauthorblockN{Siarhei Kuryla}
@@ -24,7 +25,7 @@ Libsmi is a C library which provides a convenient API for handling network manag
 \section{Motivation and problem statement}
 The YANG language is still being developed and it is not yet widely used. Availability of convenient programming tools which support this modeling language might accelerate its adoption. Libsmi is  a portable C library that currently provides an API for access to various versions of the SMI. This library hides parsing details providing accessing SMI definitions for applications. Libsmi is a potential tool to be extented to support the YANG language. 
 
-When I was starting working on the project there was already an incomplete parser implementation for libsmi based on early version of the YANG specification  \cite{bib2}. The implementation was incomplete and suffered from a number of problems: 
+When I was starting working on the project there was already an incomplete parser implementation for libsmi based on the early version of the YANG specification  \cite{bib2}. The implementation was incomplete and suffered from a number of problems: 
 \begin{itemize}
 	\item the lexical analyser was implemented inaccurately. There were various problems with qouitings, line counting, string concatenation and some general rules were defined wrong;
 	\item the syntactic analyser was implemented inaccurately. The implementation did not cover the whole grammar of the YANG language and there were many collisions with the specification;
@@ -36,6 +37,21 @@ When I was starting working on the project there was already an incomplete parse
 This project aims at completing the parser for the YANG data modeling language in order to make it compliant with the latest version of the YANG language. At the time when the project was starting the available version of the specification was draft-ietf-netmod-yang-03 \cite{bib3} and it is used as a basis for the entire project.
 
 \section{Libsmi library}
+The core of the libsmi library allows management applications to access SMI MIB module definitions. The structure of the library \cite{bib7} is internally divided into two layers. The upper layer provides the API to applications that make use of libsmi and internal data structures to management information in memory. The lower layer is a collection of drivers (actual parsers) that retrieve the management information from the SMI definitions. 
+
+The libsmi library distribution also includes a collection of tools built on top of the library to check, analyze dump, convert, and compare MIB definitions.
+
+In oder support a new modeling language by the libsmi library a driver for this language has to be implemented (a parser for the language), the way how to store language definitions in memory has to be specified by reusing already available data structures on implementing new ones, and the API to access module definitions has to be exposed.
+\begin{figure}
+\begin{center}
+\includegraphics[scale=0.50]{libsmi.jpg}
+\caption{ Libsmi structure}
+\label{fig:libsmi}
+\end{center}
+\end{figure}
+
+
+
 Supported languages
 C
 Tools
