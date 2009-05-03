@@ -1,6 +1,8 @@
 \documentclass[conference]{IEEEtran}
 \usepackage{graphicx}    % needed for including graphics e.g. EPS, P
 \usepackage[pdftex]{hyperref}
+\usepackage{listings}
+\lstset{language=C}
 \usepackage{url}
 \begin{document}
 \title{YANG Language Parser for Libsmi}
@@ -97,6 +99,52 @@ Each approach has some advantages and disadvantages. In the first case we might 
 The later approach makes the development and usage of the library much simpler, but it loses the compatibility. We can create data structures which are best suited for the language model. It will also make the API of the library clearer. In order to support the compatibility at the API level it is possible to implement conversion functions which allow to convert a module between different languages. 
 
 In the project the second approach was chosen: all necessary data structures and the public API were defined from scratch.
+
+\subsection{Public data structures}
+Public data structures and user defined types for the YANG language are declared in the \texttt{yang.h} file. All of them are named with the \texttt{Yang} prefix. 
+
+The \texttt{YangNode} data structure is used for representing YANG statements of any kind:
+\small
+\begin{center}
+\begin{verbatim}
+    typedef struct YangNode {
+        YangString      value;
+        YangString      extra;
+        YangDecl        nodeKind;
+        YangStatus      status;
+        YangConfig      config;
+        YangString      *description;
+        YangString      *reference;
+    } YangNode;
+\end{verbatim}
+\end{center}
+\normalsize
+The \texttt{nodeKind} field of the \texttt{YangDecl} enumerated C type specifies the kind of the YANG statement that corresponds to the node. The \texttt{YangDecl} type declares 65 possible values (e.g. \texttt{YANG\_DECL\_IMPORT}). The \texttt{YANG\_DECL\_UNKNOWN} value represents the statements which are user defined extensions.
+
+The \texttt{value} field of the \texttt{YangString} type holds the argument of the statement.
+
+The \texttt{extra} field of the \texttt{YangString} type is only used by the statements which are user defined extensions with an argument to store the argument.
+
+The \texttt{status} field of the \texttt{YangStatus} type holds the value of the enclosed status statement (if the status is not present then the \texttt{YANG\_STATUS\_DEFAULT\_CURRENT} value).
+
+The \texttt{config} field of the \texttt{YangConfig} type holds the value of the enclosed config statement (if the config is not present then the \texttt{YANG\_CONFIG\_DEFAULT\_CURRENT} value).
+
+The \texttt{description} and \texttt{reference} fields of the \texttt{YangString} type hold the values of the enclosed description and reference statements respectively.
+
+\subsection{Private data structures}
+
+\section{API functions}
+At the present the public API for handling YANG module definitions is fairly poor. But all required data is stored in private data structures and later on another view on them might be exposed.
+
+All YANG API functions have the \texttt{yang} prefix:
+\begin{itemize}
+\item \texttt{int yangIsModule(const char* name)} returns \texttt{true} if the module with the given name is a YANG module;
+\item \texttt{YangNode *yangGetModule(char *name)} returns a pointer to the struct \texttt{YangNode} for the module with the given name or \texttt{NULL} if the YANG module with the given has not been loaded;
+\item \texttt{YangNode *yangGetFirstModule(void)} returns a pointer to the struct \texttt{YangNode} that represents the first loaded YANG module or \texttt{NULL} if no one YANG module has been loaded;
+\item \texttt{YangNode *yangGetNextModule(YangNode *yangModulePtr)} returns a pointer to the struct \texttt{YangNode} that represents the YANG module loaded after the given module \texttt{yangModulePtr} or \texttt{NULL} if there is no YANG module loaded after it;
+\item \texttt{YangNode *yangGetFirstChildNode(YangNode *yangNodePtr)} returns a pointer to the struct \texttt{YangNode} that represents the first child node of the \texttt{yangNodePtr} node or \texttt{NULL} if that node does have child nodes;
+\item \texttt{YangNode *yangGetNextSibling(YangNode *yangNodePtr)} returns a pointer to the struct \texttt{YangNode} that represents next sibling node of the \texttt{yangNodePtr} node or \texttt{NULL} if there is no next sibling node;
+\end{itemize}
 
 \section{Testing}
 From the very begging of the project  while implementing a new grammar rule or check I have been trying to create a test case that allows to validate that rule or check. Every test case consists of two files: an input file that contains YANG module definitions and the file with the expected output for that test case. In order to test the library on a certain test the smilint tool has to be executed on the test input file and the obtained output file has to be compared to the expected one. All test files are available in the folder 	\texttt{test/yang} of the library infrastructure.
