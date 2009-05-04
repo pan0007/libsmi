@@ -325,7 +325,7 @@ _YangNode* findTargetNode(_YangNode *nodePtr, char* value) {
  *  Resolves a node in the current or imported module by an XPath expression.
  */
 _YangNode *resolveXPath(_YangNode *nodePtr) {
-    _YangIdentifierList *listPtr = getXPathNode(nodePtr->export.value), *tmp;
+    YangList *listPtr = getXPathNode(nodePtr->export.value), *tmp;
     if (!listPtr) return NULL;
     
     _YangNode *cur = NULL, *tmpNode;
@@ -340,13 +340,13 @@ _YangNode *resolveXPath(_YangNode *nodePtr) {
     } else {
         /* 'module' substatement */
         _YangModuleInfo *info = getModuleInfo(nodePtr->modulePtr);
-        if (listPtr->prefix && strcmp(listPtr->prefix, info->prefix)) {
-            cur = findYangModuleByPrefix(nodePtr->modulePtr, listPtr->prefix);
+        if (listIdentifierRef(listPtr)->prefix && strcmp(listIdentifierRef(listPtr)->prefix, info->prefix)) {
+            cur = findYangModuleByPrefix(nodePtr->modulePtr, listIdentifierRef(listPtr)->prefix);
             if (!cur) {
                 freeIdentiferList(listPtr);
                 return NULL;
             }
-            if (!validatePrefixes(listPtr, listPtr->prefix, 1)) {
+            if (!validatePrefixes(listPtr, listIdentifierRef(listPtr)->prefix, 1)) {
                 freeIdentiferList(listPtr);
                 return NULL;
             }            
@@ -362,7 +362,7 @@ _YangNode *resolveXPath(_YangNode *nodePtr) {
     YangList* submodules = NULL;
     while (listPtr) {
         tmpNode = cur;
-        cur = findTargetNode(cur, listPtr->ident);
+        cur = findTargetNode(cur, listIdentifierRef(listPtr)->ident);
         if (!cur) {
             if (submodules) {                
                 cur = listNode(submodules);
@@ -662,13 +662,13 @@ void resolveReferences(_YangNode* node) {
     }
 }
 
-int validatePrefixes(_YangIdentifierList *listPtr, char* modulePrefix, int prefixRequired) {
-    _YangIdentifierList *c = listPtr;
+int validatePrefixes(YangList *listPtr, char* modulePrefix, int prefixRequired) {
+    YangList *c = listPtr;
     while (c) {
-        if (c->prefix && strcmp(c->prefix, modulePrefix)) {
+        if (listIdentifierRef(c)->prefix && strcmp(listIdentifierRef(c)->prefix, modulePrefix)) {
             return 0;
         }
-        if (!c->prefix && prefixRequired) {
+        if (!listIdentifierRef(c)->prefix && prefixRequired) {
             return 0;
         }
         c = c->next;
@@ -810,11 +810,11 @@ void validateLists(_YangNode *nodePtr) {
             }
         }        
         if (key) {
-            _YangIdentifierList *keys = (_YangIdentifierList*)key->info;
+            YangList *keys = (YangList*)key->info;
             while (keys) {
-                _YangNode *leafPtr = findChildNodeByTypeAndValue(nodePtr, YANG_DECL_LEAF, keys->ident);
+                _YangNode *leafPtr = findChildNodeByTypeAndValue(nodePtr, YANG_DECL_LEAF, listIdentifierRef(keys)->ident);
                 if (!leafPtr) {
-                    smiPrintErrorAtLine(currentParser, ERR_INVALID_KEY_REFERENCE, key->line, keys->ident);
+                    smiPrintErrorAtLine(currentParser, ERR_INVALID_KEY_REFERENCE, key->line, listIdentifierRef(keys)->ident);
                 } else {
                     _YangNode *type = findChildNodeByType(leafPtr, YANG_DECL_TYPE);
                     if (!strcmp(type->export.value, "empty")) {
@@ -840,12 +840,12 @@ void validateLists(_YangNode *nodePtr) {
                 _YangList* l = (_YangList*)childPtr->info;
                 int configNodeCount = 0, stateNodeCount = 0;
                 while (l) {                    
-                    _YangIdentifierList* il = (_YangIdentifierList*)l->data;
+                    YangList* il = (YangList*)l->data;
                     _YangNode* cur = nodePtr;
                     while (il) {
                         cur = cur->firstChildPtr;                        
                         while (cur) {
-                            if (isDataDefNode(cur) && !strcmp(cur->export.value, il->ident)) break;
+                            if (isDataDefNode(cur) && !strcmp(cur->export.value, listIdentifierRef(il)->ident)) break;
                             cur = cur->nextSiblingPtr;
                         }
                         if (!cur) {
