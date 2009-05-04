@@ -69,6 +69,9 @@ typedef struct _YangNode {
     struct _YangNode  	*modulePtr;
 } _YangNode;
 
+/*
+ *  Old code. Should be replaced by the YangList
+ */
 typedef struct _YangList {
     void                *data;
     void                *additionalInfo;
@@ -101,7 +104,7 @@ typedef struct _YangIdentifierRefInfo {
     char		*prefix;
 	char		*identifierName;
     _YangNode   *resolvedNode;
-    _YangNode   *met;
+    _YangNode   *marker;
 } _YangIdentifierRefInfo;
 
 typedef struct _YangGroupingInfo {
@@ -111,7 +114,6 @@ typedef struct _YangGroupingInfo {
 /*
  * List data structures
  */
-
 typedef struct YangList {
     void  	*data;
     struct YangList *next;

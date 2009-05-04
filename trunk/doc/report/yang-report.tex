@@ -179,33 +179,113 @@ The \texttt{parentPtr}  field holds a pointer to the node that represents the st
 
 The \texttt{modulePtr}  field is a reference to the node corresponding to the module statement to which  the current node belongs.
 
-\section{API functions}
+\section{YANG public API functions}
 At the present the public API for handling YANG module definitions is fairly poor. But all required data is stored in private data structures and later on another view on them might be exposed.
 
 All YANG API functions have the \texttt{yang} prefix and are declared in the \texttt{lib/yang.h} file:
 \begin{itemize}
-\item \texttt{int yangIsModule(const char* name)} returns \texttt{true} if the module with the given name is a YANG module;
-\item \texttt{YangNode *yangGetModule(char *name)} returns a pointer to the struct \texttt{YangNode} for the module with the given name or \texttt{NULL} if the YANG module with the given has not been loaded;
-\item \texttt{YangNode *yangGetFirstModule(void)} returns a pointer to the struct \texttt{YangNode} that represents the first loaded YANG module or \texttt{NULL} if no one YANG module has been loaded;
-\item \texttt{YangNode *yangGetNextModule(YangNode *yangModulePtr)} returns a pointer to the struct \texttt{YangNode} that represents the YANG module loaded after the given module \texttt{yangModulePtr} or \texttt{NULL} if there is no YANG module loaded after it;
-\item \texttt{YangNode *yangGetFirstChildNode(YangNode *yangNodePtr)} returns a pointer to the struct \texttt{YangNode} that represents the first child node of the \texttt{yangNodePtr} node or \texttt{NULL} if that node does have child nodes;
-\item \texttt{YangNode *yangGetNextSibling(YangNode *yangNodePtr)} returns a pointer to the struct \texttt{YangNode} that represents next sibling node of the \texttt{yangNodePtr} node or \texttt{NULL} if there is no next sibling node;
-\item \texttt{int yangIsTrueConf(YangConfig conf)} returns \texttt{1} if the given \texttt{YangConfig} value is true and \texttt{0} otherwise.
+\item 
+\small
+\begin{verbatim}
+int yangIsModule(const char* name)
+\end{verbatim}
+\normalsize
+ returns \texttt{true} if the module with the given name is a YANG module;
+
+\item 
+\small
+\begin{verbatim}
+YangNode *yangGetModule(char *name)
+\end{verbatim}
+\normalsize
+returns a pointer to the struct \texttt{YangNode} for the module with the given name or \texttt{NULL} if the YANG module with the given has not been loaded;
+
+\item 
+\small
+\begin{verbatim}
+YangNode *yangGetFirstModule(void)
+\end{verbatim}
+\normalsize
+returns a pointer to the struct \texttt{YangNode} that represents the first loaded YANG module or \texttt{NULL} if no one YANG module has been loaded;
+
+\item 
+\small
+\begin{verbatim}
+YangNode *yangGetNextModule(
+                  YangNode *yangModulePtr)
+\end{verbatim}
+\normalsize
+returns a pointer to the struct \texttt{YangNode} that represents the YANG module loaded after the given module \texttt{yangModulePtr} or \texttt{NULL} if there is no YANG module loaded after it;
+
+\item 
+\small
+\begin{verbatim}
+YangNode *yangGetFirstChildNode(
+                    YangNode *yangNodePtr)
+\end{verbatim}
+\normalsize
+returns a pointer to the struct \texttt{YangNode} that represents the first child node of the \texttt{yangNodePtr} node or \texttt{NULL} if that node does have child nodes;
+
+\item 
+\small
+\begin{verbatim}
+YangNode *yangGetNextSibling(
+                    YangNode *yangNodePtr)
+\end{verbatim}
+\normalsize
+returns a pointer to the struct \texttt{YangNode} that represents next sibling node of the \texttt{yangNodePtr} node or \texttt{NULL} if there is no next sibling node;
+
+\item 
+\small
+\begin{verbatim}
+int yangIsTrueConf(YangConfig conf)
+\end{verbatim}
+\normalsize
+returns \texttt{1} if the given \texttt{YangConfig} value is true and \texttt{0} otherwise.
 \end{itemize}
 
-The API functions which provide initialization and adjustment operations for the libsmi library are left the same:
+While working with the YANG API there are several library API functions which still have to be used (for initialization and adjustment operations):
 \begin{itemize}
-\item the \texttt{int smiInit(const char *tag)} function initializes internal data structures;
-\item the \texttt{void smiExit(void)} function releases allocated resources;
-\item the \texttt{char *smiLoadModule(const char *module)} function loads a module with the given name in memory;
+\item 
+\small
+\begin{verbatim}
+int smiInit(const char *tag)
+\end{verbatim}
+\normalsize
+initializes internal data structures;
+
+\item 
+\small
+\begin{verbatim}
+void smiExit(void)
+\end{verbatim}
+\normalsize
+releases allocated resources;
+
+\item 
+\small
+\begin{verbatim}
+char *smiLoadModule(const char *module)
+\end{verbatim}
+\normalsize
+loads a module with the given name in memory;
 \end{itemize}
 
 \section{Implementation details}
-\subsection{Module tree constrution}
-Loading of a module in memory is triggered by the function \texttt{smiLoadModule(const char *module)} call with a parameter that represents the module name. This function verifies whether the module is defined in the YANG language and, if so, executes the function \texttt{loadYangModule(const char *modulename, const char *revision, Parser *parserPtr)}. Then the \texttt{Parser} data structure is initialized and the parser generated by Bison starts analyzing module definitions.
+\subsection{Module loading}
+YANG modules are loaded into memory by execution of the function 
+\small
+\begin{verbatim}
+    loadYangModule(const char *modulename, 
+                   const char *revision, 
+                   Parser *parserPtr),
+\end{verbatim}
+\normalsize
+where the module name must be specified, the revision and pointer to a parser are optional arguments. The \texttt{Parser} data structure declared in the \texttt{lib/data.h} file is used by all language drivers and contains a collection of parsing parameters and flags.
 
-While validating the grammar of the module C statements associated to the grammar rules are executed. These statements accomplish some additional validations that don't require a complete module representation in memory and for every module definition create the corresponding node in the parsing tree by executing the function:
+The execution of this function triggers the parsing of the module. While parsing the module, C statements associated with the grammar rules (defined in the Bison grammar description) are executed. These statements create the corresponding node in the module tree for every module definition and apply validations that don't require a complete module representation in memory.
 
+In order to add a new node into the module tree the function
 \small
 \begin{verbatim}
    _YangNode *addYangNode(const char *value, 
@@ -213,10 +293,10 @@ While validating the grammar of the module C statements associated to the gramma
                           _YangNode *parentPtr)
 \end{verbatim}
 \normalsize
+is used.
+The first parameter \texttt{value} of the function is the argument of the YANG statement (e.g., the name of the module for the module statement, an XPath expression for the must, when and augment statements). The second parameter represents the kind of the YANG statement that corresponds to the created node. And the last argument is a pointer to the parent node.
 
-The first parameter \texttt{value} of the function is the argument of the YANG statement (e.g., the name of the module for the module statement, an XPath expression for the must, when and augment statements). The second parameter represents the kind of the YANG statement that corresponds to the created node. And the last parameter is a pointer to the parent node.
-
-For some module tree nodes the \texttt{info} field of the \texttt{\_YangNode} data stucture is initialized, which depends on the type of the YANG statement:
+For some module tree nodes the \texttt{info} field of the \texttt{\_YangNode} data stucture is initialized here. What data is stored in this field depends on the the type of the YANG statement:
 \subsubsection{'module' and 'submodule' statements}
 the \texttt{info} field refers to the \texttt{\_YangModuleInfo} data structure:
 
@@ -230,24 +310,41 @@ the \texttt{info} field refers to the \texttt{\_YangModuleInfo} data structure:
        char              *contact;
        _YangParsingState parsingState;
        struct _YangNode  *originalModule;
-       struct _YangNodeList *submodules;
-       struct _YangImportList *imports;
-       void                   *parser;
+       struct YangList   *submodules;
+       struct YangList   *imports;
+       void              *parser;
 } _YangModuleInfo;
 \end{verbatim}
 \normalsize
-The \texttt{prefix}, \texttt{namespace}, \texttt{organization} and \texttt{contact} fields hold the values of the prefix, namespace, organization and contact statements enclosed into the module or submodule. The \texttt{version} field contains the specified version of the YANG language.
+The \texttt{prefix}, \texttt{namespace}, \texttt{organization} and \texttt{contact} fields hold the arguments of the prefix, namespace, organization and contact statements enclosed into the module or submodule. The \texttt{version} field contains the specified version of the YANG language.
 
-The \texttt{parsingState} field of the enumerated \texttt{\_YangParsingState} type represent the parsing state of the module and may contain one out of two values:
+The \texttt{parsingState} field of the enumerated \texttt{\_YangParsingState} type represents the parsing state of the module and contains one of the following values:
 \begin{itemize}
 \item \texttt{YANG\_PARSING\_IN\_PROGRESS} - the module is currently being parsed;
-\item \texttt{YANG\_PARSING\_DONE} - parsing of the module has been already finished;
+\item \texttt{YANG\_PARSING\_DONE} - parsing of the module has already been finished;
 \end{itemize}
 This field is used to be able to determine circular dependencies between modules and submodules.
 
 The purpose of the \texttt{originalModule} field is explained later in this document.
 
-The \texttt{submodules} field contains a list of pointers to included submodules. 
+The \texttt{submodules} and \texttt{imports} fields are linked lists of pointers to included submodules and imported modules respectively (YANG list data structures are examined later in this section).
+
+\subsubsection{'if-feature', 'typedef', 'uses', 'base' statements and user-defined extensions}
+the \texttt{info} field refers to the \texttt{\_YangIdentifierRefInfo} data structure:
+\small
+\begin{verbatim}
+    typedef struct _YangIdentifierRefInfo {
+        char        *prefix;
+        char        *identifierName;
+        _YangNode   *resolvedNode;
+        _YangNode   *marker;
+    } _YangIdentifierRefInfo;
+\end{verbatim}
+\normalsize
+
+Everyone of these statements takes an identifier reference as an argument. An identifier reference consists of the prefix of the module (which might be omitted if one refers the element in the current module) and the identifier, which are stored in the \texttt{prefix} and \texttt{identifierName} fields respectively. The field \texttt{resolvedNode} is a pointer to the node in the current or imported module which corresponds to the identifier reference. The \texttt{marker} field is used in
+
+
 
 \subsection{Import and include modules by revision}
 YANG allows to specify the revision of the imported module or included submodule. When a module is published, it uses the current available revisions of other modules. Publishing new revisions of the imported modules  does not affect the importing module, since it still uses revisions which have been published before. This YANG mechanism allows modules to evolve independently over time. 
@@ -258,6 +355,45 @@ According to the specification, YANG modules and submodules are typically stored
 (sub)module-name ['.' revision-date] ('.yang')
 \end{verbatim}
 \normalsize
+
+\subsection{YANG list datastructures}
+A linked list is an essential data structure in the YANG parser implementation. It is used to hold elements of various types. A generic linked list is defined in the \texttt{lib/yang-data.h} file as follows:
+\small
+\begin{verbatim}
+    typedef struct YangList {
+         void  	         *data;
+         struct YangList *next;
+    } YangList;
+\end{verbatim}
+\normalsize
+
+The functions 
+\small
+\begin{verbatim}
+YangList *addElementToList(
+                      YangList *firstElement, 
+                      void *data)
+\end{verbatim}
+\normalsize
+and
+\small
+\begin{verbatim}
+YangList *addLastElementToList(
+                      YangList *lastElement, 
+                      void *data)
+\end{verbatim}
+\normalsize
+allows to add elements to the beginning and end of the list.
+
+In order to ease the usage of the lists there is a set of functions with the \texttt{list} prefix, e.g.
+\small
+\begin{verbatim}
+     _YangNode  *listNode(YangList *e),
+\end{verbatim}
+\normalsize
+which allow to avoid type casting.
+
+
 
 \section{Smidump driver}
 Smidump is a program which comes with the libsmi library distribution and allows to dump the content of a MIB module in various language formats. In the course of the project the YANG driver for smidump was implemented. It allows to print a YANG module stored in memory back to text format YANG definitions. Currently it is not very useful, because there is no converter from any other format to YANG and the driver might be used only to dump YANG modules. But it might be employed for testing of the YANG parser.
