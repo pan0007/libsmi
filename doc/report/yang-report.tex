@@ -48,7 +48,7 @@ The core of the libsmi library allows management applications to access SMI MIB 
 
 The libsmi library distribution also includes a collection of tools built on top of the library to check, analyze dump, convert, and compare MIB definitions.
 
-In oder support a new modeling language by the libsmi library a driver for this language has to be implemented (a parser for the language), the way how to store language definitions in memory has to be specified by reusing already available data structures or implementing new ones, and the API to access module definitions has to be exposed. In order to be able to serialize module definitions stored in memory the smidump tool might be used which requites to implement a driver that defines the serialization rules.
+In oder support a new modeling language by the libsmi library a driver for this language has to be implemented (a parser for the language), the way how to store language definitions in memory has to be specified by reusing already available data structures or implementing new ones, and the API to access module definitions has to be exposed. In order to be able to serialize module definitions stored in memory the smidump tool might be used which requites to implement a driver that defines serialization rules.
 \begin{figure}
 \begin{center}
 \includegraphics[scale=0.50]{libsmi.jpg}
@@ -57,7 +57,7 @@ In oder support a new modeling language by the libsmi library a driver for this 
 \end{center}
 \end{figure}
 
-\section{Parsing overview}
+\section{YANG module parsing}
 The parsing of a YANG module is accomplished over several phases, which includes lexical, syntactic and semantic analysis.
 \subsection{Lexical analysis}
 Lexical analysis allows to convert an input sequence of characters into a sequence of tokens which are atomic language units such as keywords, identifiers, text segment and number definitions. A lexical analyzer processes the input characters to categorize them according to function, giving them meaning.
@@ -229,7 +229,6 @@ the \texttt{info} field refers to the \texttt{\_YangModuleInfo} data structure:
        char              *organization;
        char              *contact;
        _YangParsingState parsingState;
-       int               conformance;
        struct _YangNode  *originalModule;
        struct _YangNodeList *submodules;
        struct _YangImportList *imports;
@@ -237,15 +236,18 @@ the \texttt{info} field refers to the \texttt{\_YangModuleInfo} data structure:
 } _YangModuleInfo;
 \end{verbatim}
 \normalsize
-The \texttt{prefix}, \texttt{namespace}, \texttt{organization} and \texttt{contact} fields hold the values of the prefix, namespace, organization and contact statements enclosed into the module or submodule.
+The \texttt{prefix}, \texttt{namespace}, \texttt{organization} and \texttt{contact} fields hold the values of the prefix, namespace, organization and contact statements enclosed into the module or submodule. The \texttt{version} field contains the specified version of the YANG language.
 
-The \texttt{version} field contains the specified version of the YANG language.
-
-The \texttt{parsingState} field of the enumerated \texttt{\_YangParsingState} type may contain one out of two values:
+The \texttt{parsingState} field of the enumerated \texttt{\_YangParsingState} type represent the parsing state of the module and may contain one out of two values:
 \begin{itemize}
-\item \texttt{YANG\_PARSING\_IN\_PROGRESS} – for modules which are currently being parsed;
-\item \texttt{YANG\_PARSING\_DONE} – for modules for which the parsing has been finished;
+\item \texttt{YANG\_PARSING\_IN\_PROGRESS} - the module is currently being parsed;
+\item \texttt{YANG\_PARSING\_DONE} - parsing of the module has been already finished;
 \end{itemize}
+This field is used to be able to determine circular dependencies between modules and submodules.
+
+The purpose of the \texttt{originalModule} field is explained later in this document.
+
+The \texttt{submodules} field contains a list of pointers to included submodules. 
 
 \subsection{Import and include modules by revision}
 YANG allows to specify the revision of the imported module or included submodule. When a module is published, it uses the current available revisions of other modules. Publishing new revisions of the imported modules  does not affect the importing module, since it still uses revisions which have been published before. This YANG mechanism allows modules to evolve independently over time. 
