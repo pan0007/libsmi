@@ -823,7 +823,7 @@ importStatement: importKeyword identifierStr
 			prefixStatement stmtSep
             optionalRevision
 		'}'
-		{
+		{            
             externalModule(topNode());
 			pop();
 		}

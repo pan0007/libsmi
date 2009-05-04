@@ -18,6 +18,8 @@
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
+
+#include "yang-data.h"
 #include <sys/types.h>
 
 #ifdef HAVE_UNISTD_H
@@ -232,9 +234,9 @@ int validateNodeUniqueness(_YangNode *nodePtr) {
     }
     /* check with all submodules if it's a top-level definition or not a data defition statement */
     if (ig != YANG_IDGR_NODE || !nodePtr->parentPtr->parentPtr) {
-        _YangNodeList* submodules = ((_YangModuleInfo*)nodePtr->modulePtr->info)->submodules;
+        YangList* submodules = ((_YangModuleInfo*)nodePtr->modulePtr->info)->submodules;
         while (submodules) {
-            if (countChildNodesByTypeAndValue(submodules->nodePtr, nodePtr, ig, nodePtr->export.value)) {
+            if (countChildNodesByTypeAndValue(listNode(submodules), nodePtr, ig, nodePtr->export.value)) {
                 return 0;
             }                    
             submodules = submodules->next;
@@ -357,20 +359,20 @@ _YangNode *resolveXPath(_YangNode *nodePtr) {
         }
     }
     tmp = listPtr;
-    _YangNodeList* submodules = NULL;
+    YangList* submodules = NULL;
     while (listPtr) {
         tmpNode = cur;
         cur = findTargetNode(cur, listPtr->ident);
         if (!cur) {
             if (submodules) {                
-                cur = submodules->nodePtr;
+                cur = listNode(submodules);
                 submodules = submodules->next;
                 continue;
             }
             if (tmpNode->export.nodeKind == YANG_DECL_MODULE || tmpNode->export.nodeKind == YANG_DECL_SUBMODULE) {
                 submodules = getModuleInfo(tmpNode)->submodules;
                 if (submodules) {
-                    cur = submodules->nodePtr;
+                    cur = listNode(submodules);
                     submodules = submodules->next;
                     continue;                
                 }
@@ -552,17 +554,17 @@ void uniqueNames(_YangNode* nodePtr) {
  */
 void uniqueSubmoduleDefinitions(_YangNode* modulePtr) {
     /* validate name uniqueness of the top level definitions in all submodules */
-    _YangNodeList* submodulePtr = ((_YangModuleInfo*)modulePtr->info)->submodules, *firstSubmodulePtr;
+    YangList* submodulePtr = ((_YangModuleInfo*)modulePtr->info)->submodules, *firstSubmodulePtr;
     firstSubmodulePtr = submodulePtr;
     while (submodulePtr) {
-        _YangNode* curNodePtr = submodulePtr->nodePtr->firstChildPtr;
+        _YangNode* curNodePtr = listNode(submodulePtr)->firstChildPtr;
         while (curNodePtr) {
             YangIdentifierGroup ig = getIdentifierGroup(curNodePtr->export.nodeKind);
             if (ig > YANG_IDGR_NONE) {
-               _YangNodeList* sPtr = firstSubmodulePtr;
+               YangList* sPtr = firstSubmodulePtr;
                 while (sPtr != submodulePtr) {
-                    if (countChildNodesByTypeAndValue(sPtr->nodePtr, curNodePtr, ig, curNodePtr->export.value)) {
-                        smiPrintErrorAtLine(((Parser*)getModuleInfo(submodulePtr->nodePtr)->parser), ERR_IDENTIFIER_DEFINED_IN_OTHER_SUBMODLE, curNodePtr->line, curNodePtr->export.value, sPtr->nodePtr->export.value);
+                    if (countChildNodesByTypeAndValue(listNode(sPtr), curNodePtr, ig, curNodePtr->export.value)) {
+                        smiPrintErrorAtLine(((Parser*)getModuleInfo(listNode(submodulePtr))->parser), ERR_IDENTIFIER_DEFINED_IN_OTHER_SUBMODLE, curNodePtr->line, curNodePtr->export.value, listNode(sPtr)->export.value);
                     }
                     sPtr = sPtr->next;
                 }
@@ -936,11 +938,10 @@ void semanticAnalysis(_YangNode *module) {
     getModuleInfo(module)->originalModule = copyModule(module);
     initMap();
     resolveReferences(module);
-
     expandGroupings(module);
     
     expangAugments(module);
-    
+
     validateConfigProperties(module, 1);
     
     validateDefaultStatements(module);
@@ -948,6 +949,6 @@ void semanticAnalysis(_YangNode *module) {
     validateLists(module);
     
     uniqueNames(module);
-    
+
     uniqueSubmoduleDefinitions(module);
 }

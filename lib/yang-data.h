@@ -69,11 +69,6 @@ typedef struct _YangNode {
     struct _YangNode  	*modulePtr;
 } _YangNode;
 
-typedef struct _YangNodeList {
-    struct _YangNode  	*nodePtr;
-    struct _YangNodeList *next;
-} _YangNodeList;
-
 typedef struct _YangIdentifierList {
    char* prefix;
    char* ident;
@@ -86,11 +81,6 @@ typedef struct _YangList {
     struct _YangList    *next;    
 } _YangList;
 
-typedef struct _YangImportList {
-    char                *prefix;
-    struct _YangNode  	*modulePtr;
-    struct _YangImportList *next;
-} _YangImportList;
 
 /* _YangParseState -- reflects the current state of the module processing state      */
 typedef enum _YangParsingState {
@@ -108,8 +98,8 @@ typedef struct _YangModuleInfo {
     int         conformance;
     /* a module without expantion */
     struct _YangNode     *originalModule;
-    struct _YangNodeList *submodules;
-    struct _YangImportList *imports;
+    struct YangList *submodules;
+    struct YangList *imports;
     void                   *parser;
 } _YangModuleInfo;
 
@@ -124,6 +114,30 @@ typedef struct _YangGroupingInfo {
     _YangParsingState state;
 } _YangGroupingInfo;
 
+/*
+ * List data structures
+ */
+
+typedef struct YangList {
+    void  	*data;
+    struct YangList *next;
+} YangList;
+
+
+typedef struct _YangImport {
+    char                *prefix;
+    struct _YangNode  	*modulePtr;
+} _YangImport;
+
+YangList    *addElementToList(YangList *firstElement, void *data);
+
+_YangNode  *listNode(YangList *e);
+
+_YangImport  *listImport(YangList *e);
+
+/*
+ *  Node and Module functions
+ */
 _YangNode *findYangModuleByName(const char *modulename, char* revision);
 
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr);
