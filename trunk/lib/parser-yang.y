@@ -1540,7 +1540,7 @@ keyStatement: keyKeyword string stmtEnd
 uniqueStatement: uniqueKeyword string stmtEnd
 		{
             node = addYangNode($2, YANG_DECL_UNIQUE, topNode());
-            _YangIdentifierList *il = getUniqueList($2);
+            YangList *il = getUniqueList($2);
             node->info = processUniqueList(node, il);
             freeIdentiferList(il);
 		}

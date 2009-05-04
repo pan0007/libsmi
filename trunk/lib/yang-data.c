@@ -24,6 +24,9 @@
 #include "yang-data.h"
 
 
+#include "yang-data.h"
+
+
 #include <config.h>
 
 #include "smi.h"
@@ -915,12 +918,24 @@ YangList *addElementToList(YangList *firstElement, void *data) {
     return listPtr;
 }
 
+YangList *addLastElementToList(YangList *lastElement, void *data) {
+    YangList *listPtr = smiMalloc(sizeof(YangList));
+    listPtr->data = data;
+    listPtr->next = NULL;
+    lastElement->next = listPtr;
+    return listPtr;
+}
+
 _YangNode  *listNode(YangList *e) {
     return (_YangNode*)e->data;
 }
 
 _YangImport  *listImport(YangList *e) {
     return (_YangImport*)e->data;
+}
+
+_YangIdentifierRef  *listIdentifierRef(YangList *e) {
+    return (_YangIdentifierRef*)e->data;
 }
 
  /*
@@ -1019,31 +1034,31 @@ int isDescendantSchemaNodeid(char *s) {
     return (descendantSchemaNodeid(s) == strlen(s));
 }
 
-void freeIdentiferList(_YangIdentifierList *listPtr) {
+void freeIdentiferList(YangList *listPtr) {
     while (listPtr) {
-        _YangIdentifierList *tmp = listPtr;
+        YangList *tmp = listPtr;
         listPtr = listPtr->next;
-        if (tmp->ident) {
-            smiFree(tmp->ident);
+        if (listIdentifierRef(tmp)->ident) {
+            smiFree(listIdentifierRef(tmp)->ident);
         }
-        if (tmp->prefix) {
-            smiFree(tmp->prefix);
-        }        
+        if (listIdentifierRef(tmp)->prefix) {
+            smiFree(listIdentifierRef(tmp)->prefix);
+        }
+        smiFree(listIdentifierRef(tmp));
         smiFree(tmp);
     }
 }
 
 
-_YangIdentifierList *getXPathNode(char* s) {
+YangList *getXPathNode(char* s) {
     int i = 0;
-    _YangIdentifierList *ret = NULL, *prev = NULL;
+    YangList *ret = NULL, *prev = NULL;
     if (s[0] == '/') i = 1;
     
     while (i < strlen(s)) {
         int i1 = buildIdentifier(s + i);
         int i2 = 0;
-        _YangIdentifierList *cur = smiMalloc(sizeof(_YangIdentifierList));
-        cur->next = NULL;
+        _YangIdentifierRef *cur = smiMalloc(sizeof(_YangIdentifierRef));
         cur->prefix = NULL;
         if (s[i + i1] == ':') {
             i2 = buildIdentifier(s + i + i1 + 1);
@@ -1056,19 +1071,18 @@ _YangIdentifierList *getXPathNode(char* s) {
         i += i1 + i2 + 1;
         
         if (ret == NULL) {
-            ret = cur;
-            prev = cur;
+            ret = addElementToList(NULL, cur);
+            prev = ret;
         } else {
-            prev->next = cur;
-            prev = cur;
+            prev = addLastElementToList(prev, cur);
         }
     }
     return ret;    
 }
 
-_YangIdentifierList *getKeyList(char* s) {
+YangList *getKeyList(char* s) {
     int i = 0;
-    _YangIdentifierList *ret = NULL, *item = NULL, *prev = NULL;
+    YangList *ret = NULL, *item = NULL, *prev = NULL;
     
     while (i < strlen(s)) {
         while (i != 0 && i < strlen(s) && isSeparator(s[i])) {
@@ -1082,24 +1096,22 @@ _YangIdentifierList *getKeyList(char* s) {
                 int isNew = 1;
                 item = ret;
                 while (item) {
-                    if (!strcmp(item->ident, key)) {
+                    if (!strcmp(listIdentifierRef(item)->ident, key)) {
                         isNew = 0;
                         break;
                     }
                     item = item->next;
                 }
                 if (isNew) {
-                    _YangIdentifierList *cur = smiMalloc(sizeof(_YangIdentifierList));
-                    cur->next = NULL;
+                    _YangIdentifierRef *cur = smiMalloc(sizeof(_YangIdentifierRef));
                     cur->prefix = NULL;
                     cur->ident  = key;
 
                     if (ret == NULL) {
-                        ret = cur;
-                        prev = cur;
+                        ret = addElementToList(NULL, cur);
+                        prev = ret;
                     } else {
-                        prev->next = cur;
-                        prev = cur;
+                        prev = addLastElementToList(prev, cur);
                     }
                 } else {
                     smiPrintError(currentParser, ERR_DUPLICATED_KEY, key);
@@ -1123,9 +1135,9 @@ _YangIdentifierList *getKeyList(char* s) {
 }
 
 
-_YangIdentifierList *getUniqueList(char* s) {
+YangList *getUniqueList(char* s) {
     int i = 0;
-    _YangIdentifierList *ret = NULL, *item = NULL, *prev = NULL;
+    YangList *ret = NULL, *item = NULL, *prev = NULL;
     
     while (i < strlen(s)) {
         while (i != 0 && i < strlen(s) && isSeparator(s[i])) {
@@ -1136,17 +1148,15 @@ _YangIdentifierList *getUniqueList(char* s) {
             if (i1) {
                 char* schemaNodeId = smiStrndup(s + i, i1);
                 i += i1;
-                _YangIdentifierList *cur = smiMalloc(sizeof(_YangIdentifierList));
-                cur->next = NULL;
+                _YangIdentifierRef *cur = smiMalloc(sizeof(_YangIdentifierRef));
                 cur->prefix = NULL;
                 cur->ident  = schemaNodeId;
 
                 if (ret == NULL) {
-                    ret = cur;
-                    prev = cur;
+                    ret = addElementToList(NULL, cur);
+                    prev = ret;
                 } else {
-                    prev->next = cur;
-                    prev = cur;
+                    prev = addLastElementToList(prev, cur);
                 }
             } else {
                 freeIdentiferList(ret);
@@ -1197,7 +1207,7 @@ void freeList(_YangList* listPtr) {
 void freeUniqueList(_YangList* listPtr) {
     _YangList* tmp;
     while (listPtr) {
-        _YangIdentifierList *il = (_YangIdentifierList*)listPtr->data;
+        YangList *il = (YangList*)listPtr->data;
         freeIdentiferList(il);
         smiFree(listPtr->additionalInfo);
         listPtr = listPtr->next;
@@ -1205,36 +1215,36 @@ void freeUniqueList(_YangList* listPtr) {
     freeList(tmp);
 }
 
-_YangList* processUniqueList(_YangNode *nodePtr, _YangIdentifierList* il) {
+_YangList* processUniqueList(_YangNode *nodePtr, YangList* il) {
     if (!il) return NULL;
     _YangList* ret = NULL, *prev = NULL;
-    _YangIdentifierList* cur = il;    
+    YangList* cur = il;    
     while (cur) {
-        _YangIdentifierList* path = getXPathNode(cur->ident), *tmpPath = NULL;
+        YangList* path = getXPathNode(listIdentifierRef(cur)->ident), *tmpPath = NULL;
         /* validate prefixes */
         tmpPath = path;
         int isOk = 1;         
         while (tmpPath) {
-            if (tmpPath->prefix && strcmp(tmpPath->prefix, getModuleInfo(nodePtr->modulePtr)->prefix)) break;
+            if (listIdentifierRef(tmpPath)->prefix && strcmp(listIdentifierRef(tmpPath)->prefix, getModuleInfo(nodePtr->modulePtr)->prefix)) break;
             tmpPath = tmpPath->next;
         }
         if (tmpPath) {
-            smiPrintError(currentParser, ERR_INVALID_UNIQUE_REFERENCE, cur->ident);
+            smiPrintError(currentParser, ERR_INVALID_UNIQUE_REFERENCE, listIdentifierRef(cur)->ident);
             isOk = 0;
         }
         /* validate whether we have already met a reference to the same leaf */
         _YangList* tmp = prev;
         while (tmp) {
             tmpPath = path;
-            _YangIdentifierList *ilist = (_YangIdentifierList*)tmp->data;
+            YangList *ilist = (YangList*)tmp->data;
             while (ilist && tmpPath) {
-                if (strcmp(ilist->ident, tmpPath->ident)) break;
+                if (strcmp(listIdentifierRef(ilist)->ident, listIdentifierRef(tmpPath)->ident)) break;
                 ilist = ilist->next;
                 tmpPath = tmpPath->next;
             }
             if (!ilist && !tmpPath) {
                 isOk = 0;
-                smiPrintError(currentParser, ERR_DUPLICATED_LEAF_IN_UNIQUE, cur->ident);
+                smiPrintError(currentParser, ERR_DUPLICATED_LEAF_IN_UNIQUE, listIdentifierRef(cur)->ident);
                 break;
             }
             tmp = tmp->next;
@@ -1242,7 +1252,7 @@ _YangList* processUniqueList(_YangNode *nodePtr, _YangIdentifierList* il) {
         if (isOk) {
             prev = createListElement(prev);
             prev->data = path;
-            prev->additionalInfo = smiStrdup(cur->ident);
+            prev->additionalInfo = smiStrdup(listIdentifierRef(cur)->ident);
             if (!ret) {
                 ret = prev;
             }

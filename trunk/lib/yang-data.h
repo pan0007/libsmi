@@ -69,12 +69,6 @@ typedef struct _YangNode {
     struct _YangNode  	*modulePtr;
 } _YangNode;
 
-typedef struct _YangIdentifierList {
-   char* prefix;
-   char* ident;
-   struct _YangIdentifierList    *next;    
-} _YangIdentifierList;
-
 typedef struct _YangList {
     void                *data;
     void                *additionalInfo;
@@ -129,11 +123,20 @@ typedef struct _YangImport {
     struct _YangNode  	*modulePtr;
 } _YangImport;
 
+typedef struct _YangIdentifierRef {
+   char* prefix;
+   char* ident;
+} _YangIdentifierRef;
+
 YangList    *addElementToList(YangList *firstElement, void *data);
+
+YangList *addLastElementToList(YangList *lastElement, void *data);
 
 _YangNode  *listNode(YangList *e);
 
 _YangImport  *listImport(YangList *e);
+
+_YangIdentifierRef  *listIdentifierRef(YangList *e);
 
 /*
  *  Node and Module functions
@@ -197,17 +200,17 @@ int isAbsoluteSchemaNodeid(char *s);
 
 int isDescendantSchemaNodeid(char *s);
 
-void freeIdentiferList(_YangIdentifierList *listPtr);
+void freeIdentiferList(YangList *listPtr);
 
 int isNonNegativeInteger(char *s);
 
-_YangIdentifierList *getXPathNode(char* s);
+YangList *getXPathNode(char* s);
 
-_YangIdentifierList *getKeyList(char* s);
+YangList *getKeyList(char* s);
 
-_YangIdentifierList *getUniqueList(char* s);
+YangList *getUniqueList(char* s);
 
-_YangList* processUniqueList(_YangNode *nodePtr, _YangIdentifierList* il);
+_YangList* processUniqueList(_YangNode *nodePtr, YangList* il);
 
 _YangNode *copyModule(_YangNode *nodePtr);
 /*
