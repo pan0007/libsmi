@@ -604,7 +604,7 @@ void resolveReferences(_YangNode* node) {
                     smiPrintErrorAtLine(currentParser, ERR_REFERENCE_NOT_RESOLVED, node->line, identifierRef->prefix, identifierRef->identifierName);
                 }
                 identifierRef->resolvedNode = reference;
-                identifierRef->met = node;
+                identifierRef->marker = node;
                 /* store a base type */
                 if (nodeKind == YANG_DECL_TYPE) {
                     node->typeInfo->baseTypeNodePtr = reference;
@@ -637,10 +637,10 @@ void resolveReferences(_YangNode* node) {
                                             node->typeInfo->baseTypeNodePtr = info->resolvedNode;
                                         }
                                         
-                                        info->met = node;
+                                        info->marker = node;
                                         cur = info->resolvedNode;
                                 } else {
-                                    if (info->met == node) {
+                                    if (info->marker == node) {
                                         smiPrintErrorAtLine(currentParser, ERR_CYCLIC_REFERENCE_CHAIN, info->resolvedNode->line, yandDeclKeyword[map[nodeKind]], info->resolvedNode->export.value);
                                     }
                                     break;

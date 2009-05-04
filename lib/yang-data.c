@@ -426,7 +426,7 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* ident) {
     }
     infoPtr->identifierName = ident;
     infoPtr->resolvedNode = NULL;
-    infoPtr->met = NULL;
+    infoPtr->marker = NULL;
     
     node->info = infoPtr;   
 }
