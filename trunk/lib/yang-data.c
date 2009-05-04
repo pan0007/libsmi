@@ -15,6 +15,15 @@
 #include "yang-data.h"
 
 
+#include "yang-data.h"
+
+
+#include "yang-data.h"
+
+
+#include "yang-data.h"
+
+
 #include <config.h>
 
 #include "smi.h"
@@ -246,10 +255,10 @@ _YangNode *findYangModuleByName(const char *modulename, char* revision)
 
 _YangNode *findYangModuleByPrefix(_YangNode *module, const char *prefix)
 {
-    _YangImportList *imports = getModuleInfo(module)->imports;    
+    YangList *imports = getModuleInfo(module)->imports;    
     for (; imports; imports = imports->next) {
-        if (!strcmp(imports->prefix, prefix)) {
-            return imports->modulePtr;
+        if (!strcmp(listImport(imports)->prefix, prefix)) {
+            return listImport(imports)->modulePtr;
         }
     }
     return (NULL);
@@ -334,9 +343,9 @@ _YangNode* resolveNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char
         _YangNode *ret = resolveNodeByTypeAndValue(nodePtr->parentPtr, nodeKind, value, depth);
         if (ret) return ret;
     } else {
-        _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
+        YangList *submodules = getModuleInfo(nodePtr)->submodules;
         for (; submodules; submodules = submodules->next) {            
-            _YangNode *ret = resolveNodeByTypeAndValue(submodules->nodePtr, nodeKind, value, depth - 1);
+            _YangNode *ret = resolveNodeByTypeAndValue(listNode(submodules), nodeKind, value, depth - 1);
             if (ret) return ret;
         }        
     }
@@ -635,20 +644,18 @@ _YangNode *loadYangModule(const char *modulename, const char * revision, Parser 
  *----------------------------------------------------------------------
  */
 void addSubmodule(_YangNode *module, _YangNode *submodule) {
-    _YangNodeList* cur = ((_YangModuleInfo*)module->info)->submodules;
+    YangList* cur = ((_YangModuleInfo*)module->info)->submodules;
     while (cur) {
-        if (cur->nodePtr == submodule) return;
+        if (listNode(cur) == submodule) return;
         cur = cur->next;
     }
-    _YangNodeList *nodeListPtr = smiMalloc(sizeof(_YangNodeList));
-    nodeListPtr->nodePtr = submodule;
-    nodeListPtr->next = ((_YangModuleInfo*)module->info)->submodules;
-    ((_YangModuleInfo*)module->info)->submodules = nodeListPtr;
     
+    ((_YangModuleInfo*)module->info)->submodules = addElementToList(((_YangModuleInfo*)module->info)->submodules, submodule);
+
     /* go through all child submodules included by the current submodule and add them to the module as well */
     cur = ((_YangModuleInfo*)submodule->info)->submodules;
     while (cur) {
-        addSubmodule(module, cur->nodePtr);
+        addSubmodule(module, listNode(cur));
         cur = cur->next;
     }    
 }
@@ -673,19 +680,18 @@ void addImportedModule(_YangNode *importNode, _YangNode *importedModule) {
         smiPrintError(currentParser, ERR_DUPLICATED_PREFIX, importPrefix);
     }
     
-    _YangImportList* cur = ((_YangModuleInfo*)importNode->modulePtr->info)->imports;
+    YangList* cur = ((_YangModuleInfo*)importNode->modulePtr->info)->imports;
     while (cur) {
-        if (!strcmp(cur->prefix, importPrefix)) {
+        if (!strcmp(listImport(cur)->prefix, importPrefix)) {
             smiPrintError(currentParser, ERR_DUPLICATED_PREFIX, importPrefix);
         }
         cur = cur->next;
     }
 
-    _YangImportList *importPtr = smiMalloc(sizeof(_YangImportList));
-    importPtr->prefix = importPrefix;
-    importPtr->modulePtr = importedModule;
-    importPtr->next = ((_YangModuleInfo*)importNode->modulePtr->info)->imports;
-    ((_YangModuleInfo*)importNode->modulePtr->info)->imports = importPtr;
+    _YangImport *import = smiMalloc(sizeof(_YangImport));
+    import->prefix = importPrefix;
+    import->modulePtr = importedModule;
+    ((_YangModuleInfo*)importNode->modulePtr->info)->imports = addElementToList(((_YangModuleInfo*)importNode->modulePtr->info)->imports, import);
 }
 
 /*
@@ -802,15 +808,16 @@ void freeYangNode(_YangNode *nodePtr) {
                 smiFree(getModuleInfo(nodePtr)->parser);
                 
                 getModuleInfo(nodePtr)->originalModule = NULL;
-                _YangNodeList *submodules = getModuleInfo(nodePtr)->submodules;
+                YangList *submodules = getModuleInfo(nodePtr)->submodules;
                 while (submodules) {
-                    _YangNodeList *next = submodules->next;
+                    YangList *next = submodules->next;
                     smiFree(submodules);
                     submodules = next;
                 }
-                _YangImportList *imports = getModuleInfo(nodePtr)->imports;
+                YangList *imports = getModuleInfo(nodePtr)->imports;
                 while (imports) {
-                    _YangImportList *next = imports->next;
+                    YangList *next = imports->next;
+                    smiFree(listImport(imports));
                     smiFree(imports);
                     imports = next;
                 }        
@@ -896,6 +903,24 @@ int isDataDefNode(_YangNode* nodePtr) {
            kind == YANG_DECL_ANYXML ||
            kind == YANG_DECL_USES;
     
+}
+
+/*
+ *  List functions
+ */
+YangList *addElementToList(YangList *firstElement, void *data) {
+    YangList *listPtr = smiMalloc(sizeof(YangList));    
+    listPtr->data = data;
+    listPtr->next = firstElement;
+    return listPtr;
+}
+
+_YangNode  *listNode(YangList *e) {
+    return (_YangNode*)e->data;
+}
+
+_YangImport  *listImport(YangList *e) {
+    return (_YangImport*)e->data;
 }
 
  /*
