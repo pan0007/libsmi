@@ -179,6 +179,8 @@ The \texttt{parentPtr}  field holds a pointer to the node that represents the st
 
 The \texttt{modulePtr}  field is a reference to the node corresponding to the module statement to which  the current node belongs.
 
+Using the same datastructure for all YANG statements makes it possible to process all nodes of the module tree in the same way, which allows to generalize logic for various types of statements and ease the implementation.
+
 \section{YANG public API functions}
 At the present the public API for handling YANG module definitions is fairly poor. But all required data is stored in private data structures and later on another view on them might be exposed.
 
@@ -341,12 +343,23 @@ the \texttt{info} field refers to the \texttt{\_YangIdentifierRefInfo} data stru
     } _YangIdentifierRefInfo;
 \end{verbatim}
 \normalsize
+Everyone of these statements takes an identifier reference as an argument. An identifier reference consists of the prefix of the module (which might be omitted if one refers the element in the current module) and the identifier, which are stored in the \texttt{prefix} and \texttt{identifierName} fields respectively. The field \texttt{resolvedNode} is a pointer to the node in the current or imported module which corresponds to the identifier reference. The \texttt{marker} field is used to detect circular dependencies between module elements.
 
-Everyone of these statements takes an identifier reference as an argument. An identifier reference consists of the prefix of the module (which might be omitted if one refers the element in the current module) and the identifier, which are stored in the \texttt{prefix} and \texttt{identifierName} fields respectively. The field \texttt{resolvedNode} is a pointer to the node in the current or imported module which corresponds to the identifier reference. The \texttt{marker} field is used in
+\subsubsection{'grouping' statement}
+the \texttt{info} field refers to the \texttt{\_YangGroupingInfo} data structure:
+\small
+\begin{verbatim}
+    typedef struct _YangGroupingInfo {
+        _YangParsingState state;
+    } _YangGroupingInfo;
+\end{verbatim}
+\normalsize
+This data structure contains only one field, which represents the parsing state of the grouping definition and is used in circular dependency detection.
 
+\subsubsection{'key' and 'unique' statements}
+These statements take as an argument a string which contains a space separated list of node identifier references. The \texttt{info} field holds a parsed list of identifier references.
 
-
-\subsection{Import and include modules by revision}
+\subsection{Import and include modules}
 YANG allows to specify the revision of the imported module or included submodule. When a module is published, it uses the current available revisions of other modules. Publishing new revisions of the imported modules  does not affect the importing module, since it still uses revisions which have been published before. This YANG mechanism allows modules to evolve independently over time. 
 
 According to the specification, YANG modules and submodules are typically stored in files, one module or submodule per file, and the name of the file should be on the form:
@@ -355,6 +368,15 @@ According to the specification, YANG modules and submodules are typically stored
 (sub)module-name ['.' revision-date] ('.yang')
 \end{verbatim}
 \normalsize
+
+When the import (include) statement is encountered in the parsing module, the corresponding module (submodule) is loaded into memory by 
+\small
+\begin{verbatim}
+_YangNode *externalModule(_YangNode *importNode);
+\end{verbatim}
+\normalsize
+function invocation. If a revision of the imported module is present then the implementation tries to load a module with the specified revision. If a module with the specified revision has not been found, the library attempts to load a module with no revision.
+While loading imported modules (submodules) there is a validation that allows to detect circular dependencies between modules  (submodules).
 
 \subsection{YANG list datastructures}
 A linked list is an essential data structure in the YANG parser implementation. It is used to hold elements of various types. A generic linked list is defined in the \texttt{lib/yang-data.h} file as follows:
@@ -392,8 +414,6 @@ In order to ease the usage of the lists there is a set of functions with the \te
 \end{verbatim}
 \normalsize
 which allow to avoid type casting.
-
-
 
 \section{Smidump driver}
 Smidump is a program which comes with the libsmi library distribution and allows to dump the content of a MIB module in various language formats. In the course of the project the YANG driver for smidump was implemented. It allows to print a YANG module stored in memory back to text format YANG definitions. Currently it is not very useful, because there is no converter from any other format to YANG and the driver might be used only to dump YANG modules. But it might be employed for testing of the YANG parser.
