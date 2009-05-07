@@ -143,21 +143,19 @@ _YangIdentifierRef  *listIdentifierRef(YangList *e);
 /*
  *  Node and Module functions
  */
-_YangNode *findYangModuleByName(const char *modulename, char* revision);
-
 _YangNode *addYangNode(const char *value, YangDecl nodeKind, _YangNode *parentPtr);
 
 _YangModuleInfo *createModuleInfo(_YangNode *modulePtr);
 
 _YangTypeInfo createTypeInfo(_YangNode *node);
 
+_YangNode *findYangModuleByName(const char *modulename, char* revision);
+
 _YangNode *findYangModuleByPrefix(_YangNode *module, const char *prefix);
 
 _YangNode* findChildNodeByType(_YangNode *nodePtr, YangDecl nodeKind);
 
 _YangNode* findChildNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value);
-
-_YangNode* resolveNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char* value, int depth);
 
 _YangNode* resolveReference(_YangNode *currentNodePtr, YangDecl nodeKind, char* prefix, char* identifierName);
 
