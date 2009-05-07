@@ -44,15 +44,19 @@ This project aims at completing the parser for the YANG data modeling language i
 The base unit of definition in YANG is a module, which defines a single data model. A module might be partitioned into a number of submodules that contribute definitions to the module. One module might refer other modules' definitions importing them. 
 
 \section{Libsmi library}
-The core of the libsmi library allows management applications to access SMI MIB module definitions. The structure of the library \cite{bib7} is internally divided into two layers. The upper layer provides the API to applications that make use of libsmi and internal data structures to management information in memory. The lower layer is a collection of drivers (actual parsers) that retrieve the management information from the SMI definitions. 
+The core of the libsmi library allows management applications to access SMI MIB module definitions. 
+The structure of the library \cite{bib7} is internally divided into two layers. 
+The upper layer provides the API to applications that make use of libsmi and internal data structures to management information in memory. 
+The lower layer is a collection of drivers (actual parsers) that retrieve the management information from the SMI definitions.
+The details of the libsmi architecture are illustrated in the figure \ref{fig:libsmi}.  
 
 The libsmi library distribution also includes a collection of tools built on top of the library to check, analyze dump, convert, and compare MIB definitions.
 
-In oder support a new modeling language by the libsmi library a driver for this language has to be implemented (a parser for the language), the way how to store language definitions in memory has to be specified by reusing already available data structures or implementing new ones, and the API to access module definitions has to be exposed. In order to be able to serialize module definitions stored in memory the smidump tool might be used which requites to implement a driver that defines serialization rules.
+In order to support a new modeling language by the libsmi library a driver for this language has to be implemented (a parser for the language), the way how to store language definitions in memory has to be specified by reusing already available data structures or implementing new ones, and the API to access module definitions has to be exposed. In order to be able to serialize module definitions stored in memory the smidump tool might be used which requites to implement a driver that defines serialization rules.
 \begin{figure}
 \begin{center}
 \includegraphics[scale=0.50]{libsmi.jpg}
-\caption{ Libsmi structure}
+\caption{ Libsmi architecture}
 \label{fig:libsmi}
 \end{center}
 \end{figure}
@@ -359,7 +363,7 @@ This data structure contains only one field, which represents the parsing state 
 \subsubsection{'key' and 'unique' statements}
 These statements take as an argument a string which contains a space separated list of node identifier references. The \texttt{info} field holds a parsed list of identifier references.
 
-\subsection{Import and include modules}
+\subsection{Importing and including modules}
 YANG allows to specify the revision of the imported module or included submodule. When a module is published, it uses the current available revisions of other modules. Publishing new revisions of the imported modules  does not affect the importing module, since it still uses revisions which have been published before. This YANG mechanism allows modules to evolve independently over time. 
 
 According to the specification, YANG modules and submodules are typically stored in files, one module or submodule per file, and the name of the file should be on the form:
@@ -377,7 +381,93 @@ _YangNode *externalModule(_YangNode *importNode);
 \normalsize
 function invocation. If a revision for the imported module is present then the implementation tries to load a module with the specified revision. 
 If such module has not been found, the library attempts to load a module with no revision.
-While loading imported modules (submodules) there is a validation that allows to detect circular dependencies between them.
+While loading imported modules (submodules) there is validation that allows to detect circular dependencies between them.
+
+\subsection{Private API functions}
+Private API functions are defined in the \texttt{lib/yang-data.h} file. 
+Some of them have been already mentioned and explained in the previous sections. Here is a list of primary private API functions:
+\begin{itemize}
+\item
+\small
+\begin{verbatim}
+_YangNode *loadYangModule(
+                   const char *modulename, 
+                   const char * revision, 
+                   Parser *parserPtr)
+\end{verbatim}
+\normalsize
+
+loads a module with by the given name and revision.
+\item
+\small
+\begin{verbatim}
+void yangFreeData()
+\end{verbatim}
+\normalsize
+frees the memory allocated for all loaded YANG modules. 
+
+\item
+\small
+\begin{verbatim}
+YangNode *findYangModuleByName(
+   const char *modulename, char* revision)
+\end{verbatim}
+\normalsize
+returns a pointer to the module with the given name and revision. 
+The \texttt{revision} parameter is optional here and \texttt{NULL} might be used if the revision is not relevant.
+
+\item
+\small
+\begin{verbatim}
+_YangNode *findYangModuleByPrefix(
+   _YangNode *module, const char *prefix)
+\end{verbatim}
+\normalsize
+returns a pointer to the module imported from the given module with the specified prefix.
+
+\item
+\small
+\begin{verbatim}
+_YangNode* findChildNodeByType(
+   _YangNode *nodePtr, YangDecl nodeKind)
+\end{verbatim}
+\normalsize
+returns a pointer to the first child node of the given node by the specified node type.
+
+\item
+\small
+\begin{verbatim}
+_YangNode* findChildNodeByTypeAndValue(
+      _YangNode *nodePtr, YangDecl nodeKind, 
+      char* argument)
+\end{verbatim}
+\normalsize
+returns a pointer to the first child node of the given node by the specified node type and argument value.
+
+\item
+\small
+\begin{verbatim}
+_YangNode* resolveReference(
+             _YangNode *currentNodePtr, 
+             YangDecl nodeKind, 
+             char* prefix, 
+             char* identifierName)
+\end{verbatim}
+\normalsize
+resolves a reference to a node in the scope of the \texttt{currentNodePtr} node by the given node type (\texttt{nodeKind}), 
+module prefix and argument value (\texttt{identifierName}). The \texttt{prefix} is an optional parameter and can be omitted if the referred node is within the current module.   
+While resolving a reference the implementation searches up the levels of the hierarchy in the schema tree, starting at
+the \texttt{currentNodePtr} node. If the given prefix does not belong to the current module the implementation searches for a node at the top level of the imported module with the specified prefix.
+If the node has not been found in the module (either the current or imported one) then the implementation searches in all submodules of the module.  
+
+\item
+\small
+\begin{verbatim}
+YangModuleInfo *createModuleInfo(
+                  _YangNode *modulePtr)
+\end{verbatim}
+\normalsize
+returns a pointer to the \texttt{YangModuleInfo} structure created for the given module.
 
 \subsection{YANG list data structures}
 A linked list is an essential data structure in the YANG parser implementation. It is used to hold elements of various types. A generic linked list is defined in the \texttt{lib/yang-data.h} file as follows:
@@ -415,60 +505,6 @@ In order to ease the usage of the lists there is a set of functions with the \te
 \end{verbatim}
 \normalsize
 which allow to avoid type casting of the the \texttt{data} field.   
-
-\subsection{Private API functions}
-The private API functions are defined in the \texttt{lib/yang-data.h} file.
-\begin{itemize}
-\item
-\small
-\begin{verbatim}
-YangNode *findYangModuleByName(
-   const char *modulename, char* revision)
-\end{verbatim}
-\normalsize
-returns a pointer to the module with the given name and revision. 
-The \texttt{revision} parameter is optional here and \texttt{NULL} might be used if the revision is not relevant.
-
-\item
-\small
-\begin{verbatim}
-_YangNode *findYangModuleByPrefix(
-   _YangNode *module, const char *prefix)
-\end{verbatim}
-\normalsize
-returns a pointer to the module imported from the given module with the specified prefix.
-
-\item
-\small
-\begin{verbatim}
-_YangNode* findChildNodeByType(
-   _YangNode *nodePtr, YangDecl nodeKind)
-\end{verbatim}
-\normalsize
-returns a pointer to the first child node of the given node with the specified type.
-
-\item
-\small
-\begin{verbatim}
-_YangNode* findChildNodeByTypeAndValue(
-      _YangNode *nodePtr, YangDecl nodeKind, 
-      char* argument)
-\end{verbatim}
-\normalsize
-returns a pointer to the first child node of the given node with the specified type and argument value.
-
-\item
-\small
-\begin{verbatim}
-_YangNode* resolveReference(
-             _YangNode *currentNodePtr, 
-             YangDecl nodeKind, 
-             char* prefix, 
-             char* identifierName)
-\end{verbatim}
-\normalsize
-resolves a reference to the node with the given type and argument value (\texttt{identifierName}) either in the current or imported module specified by the prefix.
-
 
 \end{itemize}
 \section{Semantic analysis}

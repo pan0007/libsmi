@@ -273,7 +273,6 @@ void smiExit()
 
     smiFreeData();
     yangFreeData();    
-    // TODO: free YANG structures
 
     smiFree(smiHandle->path);
 #if !defined(_MSC_VER)

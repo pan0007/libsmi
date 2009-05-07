@@ -191,7 +191,6 @@ void presenceNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
 
 int getCardinality(_YangNode *nodePtr, YangDecl nodeKind);
 
-
 int isDataDefNode(_YangNode* nodePtr);
 /*
  *  XPath
