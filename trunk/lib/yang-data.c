@@ -203,7 +203,7 @@ _YangModuleInfo* getModuleInfo(_YangNode* module) {
  *
  * findYangModuleByName --
  *
- *      Lookup a Yang module by a given name.
+ *      Lookup a Yang module by the given name.
  *
  * Results:
  *      A pointer to the _YangNode structure or
@@ -243,7 +243,7 @@ _YangNode *findYangModuleByName(const char *modulename, char* revision)
  *
  * findYangModuleByPrefix --
  *
- *      Lookup a Yang module by a given prefix.
+ *      Lookup the imported Yang module by the given prefix.
  *
  * Results:
  *      A pointer to the _YangNode structure or
@@ -252,8 +252,7 @@ _YangNode *findYangModuleByName(const char *modulename, char* revision)
  * Side effects:
  *      None.
  *
- *----------------------------------------------------------------------
- */
+ *---------------------------------------------------------------------- */
 
 
 _YangNode *findYangModuleByPrefix(_YangNode *module, const char *prefix)
@@ -323,7 +322,7 @@ _YangNode* findChildNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, ch
  *
  * resolveNodeByTypeAndValue
  *
- *      Resolve a node by a given type.
+ *      Resolve a node by the given type and argument.
  *
  * Results:
  *      A pointer to the _YangNode structure or
@@ -360,7 +359,9 @@ _YangNode* resolveNodeByTypeAndValue(_YangNode *nodePtr, YangDecl nodeKind, char
  *
  * resolveReference
  *
- *      Resolve a reference by a given type.
+ *      Resolve a reference to the node with the give type(nodeKind) and argument value (identifierName) 
+ *      either in the current or imported module specified by the prefix
+ *      in the context of the currentNodePtr node.
  *
  * Results:
  *      A pointer to the _YangNode structure or

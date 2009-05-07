@@ -22,19 +22,19 @@ NETCONF is a network management protocol developed in the IETF by the Netconf wo
 \section{Introduction}
 YANG is a data modeling language used to model configuration and state data manipulated by the NETCONF protocol, NETCONF remote procedure calls, and NETCONF notifications. Today, the NETCONF protocol \cite{bib1} lacks a standardized way to create data models. Instead, vendors are forced to use proprietary solutions. In order for NETCONF to be a interoperable protocol, models must be defined in a vendor-neutral way. YANG provides the language and rules for defining such models for use with NETCONF. 
 
-YANG is posed as simple and easy to learn because of its trivial and regular syntax. This language is NETCONF-specific language designed to do what it needs to do well and it does not try to compete with XSD. YANG is fully modular and it enables development of certain parts of the model without influencing those parts that need no change. The YANG language is still under develoment and the latest draft version of this language was released on April 20, 2009 
+YANG is posed as simple and easy to learn because of its trivial and regular syntax. This language is NETCONF-specific language designed to do what it needs to do well and it does not try to compete with XSD. YANG is fully modular and it enables development of certain parts of the model without influencing those parts that need no change. The YANG language is still under development and the latest draft version of this language was released on April 20, 2009 
 
 Libsmi is a C library which provides a convenient API for handling network management data model definitions written in various versions of the SMI. The project's main task is to create a YANG parser for the library, update it's inner data structures to support the new language, and extend the API to support the new features of the YANG language.
 
 \section{Motivation and problem statement}
-The YANG language is still being developed and it is not yet widely used. Availability of convenient programming tools which support this modeling language might facilitate its adoption. Libsmi is  a portable C library that currently provides an API for access to various versions of the SMI. This library hides parsing details providing accessing SMI definitions for applications. Libsmi is a potential tool to be extented to support the YANG language. 
+The YANG language is still being developed and it is not yet widely used. Availability of convenient programming tools which support this modeling language might facilitate its adoption. Libsmi is  a portable C library that currently provides an API for access to various versions of the SMI. This library hides parsing details providing accessing SMI definitions for applications. Libsmi is a potential tool to be extended to support the YANG language. 
 
 When I was starting working on the project there was already an incomplete parser implementation for libsmi based on the early version of the YANG specification  \cite{bib2}. The implementation was incomplete and suffered from a number of problems: 
 \begin{itemize}
-	\item the lexical analyser was implemented inaccurately. There were various problems with qouitings, line counting, string concatenation and some general rules were defined wrong;
-	\item the syntactic analyser was implemented inaccurately. The implementation did not cover the whole grammar of the YANG language and there were many collisions with the specification;
-	\item the implementation was incomplete: some language statements were stored to internal datastructures, others were not;
-	\item the implementation tried to retrofit the YANG datamodel into existing libsmi data structures and API functions. However it caused many problems, making the parser much more complicated. It was confusing what functions we should use to handle a particular language definition, what data structure and members of the data structure correspond to the definition;
+	\item the lexical analyzer was implemented inaccurately. There were various problems with qoutings, line counting, string concatenation and some general rules were defined wrong;
+	\item the syntactic analyzer was implemented inaccurately. The implementation did not cover the whole grammar of the YANG language and there were many collisions with the specification;
+	\item the implementation was incomplete: some language statements were stored to internal data structures, others were not;
+	\item the implementation tried to retrofit the YANG data model into existing libsmi data structures and API functions. However it caused many problems, making the parser much more complicated. It was confusing what functions we should use to handle a particular language definition, what data structure and members of the data structure correspond to the definition;
 	\item there was no semantic analysis. References to groupings, types, features, and identities were not resolved, uniqueness of identifiers was not validated, modules knew nothing about definitions in their submodules.
 \end{itemize}
 
@@ -62,24 +62,24 @@ The parsing of a YANG module is accomplished over several phases, which includes
 \subsection{Lexical analysis}
 Lexical analysis allows to convert an input sequence of characters into a sequence of tokens which are atomic language units such as keywords, identifiers, text segment and number definitions. A lexical analyzer processes the input characters to categorize them according to function, giving them meaning.
 
-In the project lexical analysis is done by the lexical analyzer which is generated by the flex tool \cite{bib5}. The flex program reads a description of a lexical analyzer to generate from the given input file. The description is in the form of pairs of regular expressions and C statements associated with them. Flex generates as output a C source file which is a lexical analyzer for the given description. This output file has to be compiled and linked to produce an executable. When the executable is run, it analyzes its input for occurrences of the regular expressions and once it matches an input character seaquence with a regular expression it executes the C code associated with it.
+In the project lexical analysis is done by the lexical analyzer which is generated by the flex tool \cite{bib5}. The flex program reads a description of a lexical analyzer to generate from the given input file. The description is in the form of pairs of regular expressions and C statements associated with them. Flex generates as output a C source file which is a lexical analyzer for the given description. This output file has to be compiled and linked to produce an executable. When the executable is run, it analyzes its input for occurrences of the regular expressions and once it matches an input character sequence with a regular expression it executes the C code associated with it.
 
 The file \texttt{lib/scanner-yang.l} contains the description of the lexical analyzer for the YANG language. A token in YANG is either a keyword, a string, ";", "\{", or "\}". First of all, regular expressions for all keywords of the YANG language are defined and C statements which return the type of the keyword are associated with them. A string might be either unquoted  or enclosed within double or single quotes depending on the characters the string contains. Identifiers, identifier references (which are in the form prefix:identifier) and dates  are specific kinds of strings. The rules to handle all these kinds of strings are defined in the description of the lexical analyzer. If a quoted string is followed by a plus character ("+"), followed by
  another quoted string, the two strings have to be concatenated which is also accomplished here.
 
 YANG supports two kinds of comments: a single line comment which starts with "//" and  ends at the end of the line; a block comment which is enclosed within "/*"  and "*/". The lexical analyzer contains rules which filter out both kinds of comments from the input character sequence.
 
-Lexical analyser is also responsible for counting line numbers to assosicate them with tokens.
+Lexical analyzer is also responsible for counting line numbers to associate them with tokens.
 
 \subsection{Syntactic analysis}
 Syntactic analysis processes a sequence of tokens obtained from the lexical analysis and determines their grammatical structure with respect to a given formal grammar. In other words, it checks whether it is possible to construct a particular sequence of tokens by applying grammar rules of the language. Apart from the validation for correct syntax the syntactic analysis also builds a parse tree for the input token sequence. 
 
 In order to create a syntactic analyzer for the YANG language bison parser generator \cite{bib6} is used, which is a part of the GNU project. Bison converts a grammar description for a context-free grammar into a C program which can parse a sequence of tokens that conforms to that grammar. 
 
-The file \texttt{lib/parser-yang.y} is a Bison grammar file that contains the grammar of the YANG language in Bison syntax. The first part of this grammar file is Bison declarations where the names of all terminal and nonterminal symbols are declared. The rest of the file implements the YANG ABNF grammar rules defined in the specification. In a Bison grammar, a grammar rule might have an action made up of C statements. Each time the parser recognizes a match for that rule, the action is executed. The assosicated with the grammar rules C statements accomplish simple validations and construct a representation of the parsing module in memory.
+The file \texttt{lib/parser-yang.y} is a Bison grammar file that contains the grammar of the YANG language in Bison syntax. The first part of this grammar file is Bison declarations where the names of all terminal and nonterminal symbols are declared. The rest of the file implements the YANG ABNF grammar rules defined in the specification. In a Bison grammar, a grammar rule might have an action made up of C statements. Each time the parser recognizes a match for that rule, the action is executed. The associated with the grammar rules C statements accomplish simple validations and construct a representation of the parsing module in memory.
 
 \subsection{Semantic analysis}
-When the syntactic analysis is done we know that the YANG module is grammatically correct and we have the representation of the module in internal data structures, but it still does not mean that the  module is valid. Semantic analysis is the phase in which semantic information is added to tree built in the previos phase. This phase performs semantic checks which require a complete module tree. For instance, these are some examples of validations that have to be applied in this phase:
+When the syntactic analysis is done we know that the YANG module is grammatically correct and we have the representation of the module in internal data structures, but it still does not mean that the  module is valid. Semantic analysis is the phase in which semantic information is added to tree built in the previous phase. This phase performs semantic checks which require a complete module tree. For instance, these are some examples of validations that have to be applied in this phase:
 \begin{itemize}
 \item resolve all references to user defined types, groupings, extensions, identities and features.
 \item check whether there are no
@@ -97,7 +97,7 @@ The libsmi library already contains a set of implemented data structures for oth
 \item create a separate set of data structures and API functions for YANG from scratch;
 \end{itemize}
 
-Each approach has some advantages and disadvantages. In the first case we might keep the API of the library unchanged and, theoretically, the applications that use the libsmi library and have been developed before don't require additional changes (or require minor changes). But, practically, it suffers from a number of limitations. The YANG language is pretty different from the languages libsmi supports and it would be not a trivial task to fit the YANG model into existing data structures and APIs. Even though it is doable it would be necessary to modify some existing datastructers and add new ones. It results in very complicated data structures some fields of which are used by one modeling language and not used by another one. As a result the development process gets extremely difficult because we have to operate on the data structures we have, but not ones that are best suited. In order to work with the library one should spend much time on learning how  data is actually stored. 
+Each approach has some advantages and disadvantages. In the first case we might keep the API of the library unchanged and, theoretically, the applications that use the libsmi library and have been developed before don't require additional changes (or require minor changes). But, practically, it suffers from a number of limitations. The YANG language is pretty different from the languages libsmi supports and it would be not a trivial task to fit the YANG model into existing data structures and APIs. Even though it is doable it would be necessary to modify some existing data structures and add new ones. It results in very complicated data structures some fields of which are used by one modeling language and not used by another one. As a result the development process gets extremely difficult because we have to operate on the data structures we have, but not ones that are best suited. In order to work with the library one should spend much time on learning how  data is actually stored. 
 
 The later approach makes the development and usage of the library much simpler, but it loses the compatibility. We can create data structures which are best suited for the language model. It will also make the API of the library clearer. In order to support the compatibility at the API level it is possible to implement conversion functions which allow to convert a module between different languages. 
 
@@ -165,7 +165,7 @@ where \texttt{yangNodePtr} is of the \texttt{YangNode} type.
 
 The purpose of the \texttt{nodeType} field of the enumerated \texttt{YangNodeType} type is described later on in this report. All nodes corresponding to the  definitions of the YANG module have \texttt{YANG\_NODE\_ORIGINAL} as the value of this field.
 
-The \texttt{info} pointer is used to  refer additional data stuctures which hold the information specific for different types of YANG statements. For instance, if the node represents the module statement then the pointer contains the reference to the \texttt{\_YangModuleInfo} data structure.
+The \texttt{info} pointer is used to  refer additional data structures which hold the information specific for different types of YANG statements. For instance, if the node represents the module statement then the pointer contains the reference to the \texttt{\_YangModuleInfo} data structure.
 
 The \texttt{line} field holds the number of the line in the module file corresponding to the statement which is represented by the node.
 
@@ -179,7 +179,7 @@ The \texttt{parentPtr}  field holds a pointer to the node that represents the st
 
 The \texttt{modulePtr}  field is a reference to the node corresponding to the module statement to which  the current node belongs.
 
-Using the same datastructure for all YANG statements makes it possible to process all nodes of the module tree in the same way, which allows to generalize logic for various types of statements and ease the implementation.
+Using the same data structure for all YANG statements makes it possible to process all nodes of the module tree in the same way, which allows to generalize logic for various types of statements and ease the implementation.
 
 \section{YANG public API functions}
 At the present the public API for handling YANG module definitions is fairly poor. But all required data is stored in private data structures and later on another view on them might be exposed.
@@ -298,7 +298,7 @@ In order to add a new node into the module tree the function
 is used.
 The first parameter \texttt{value} of the function is the argument of the YANG statement (e.g., the name of the module for the module statement, an XPath expression for the must, when and augment statements). The second parameter represents the kind of the YANG statement that corresponds to the created node. And the last argument is a pointer to the parent node.
 
-For some module tree nodes the \texttt{info} field of the \texttt{\_YangNode} data stucture is initialized here. What data is stored in this field depends on the the type of the YANG statement:
+For some module tree nodes the \texttt{info} field of the \texttt{\_YangNode} data structure is initialized here. What data is stored in this field depends on the the type of the YANG statement:
 \subsubsection{'module' and 'submodule' statements}
 the \texttt{info} field refers to the \texttt{\_YangModuleInfo} data structure:
 
@@ -375,10 +375,11 @@ When the import (include) statement is encountered in the parsing module, the co
 _YangNode *externalModule(_YangNode *importNode);
 \end{verbatim}
 \normalsize
-function invocation. If a revision of the imported module is present then the implementation tries to load a module with the specified revision. If a module with the specified revision has not been found, the library attempts to load a module with no revision.
-While loading imported modules (submodules) there is a validation that allows to detect circular dependencies between modules  (submodules).
+function invocation. If a revision for the imported module is present then the implementation tries to load a module with the specified revision. 
+If such module has not been found, the library attempts to load a module with no revision.
+While loading imported modules (submodules) there is a validation that allows to detect circular dependencies between them.
 
-\subsection{YANG list datastructures}
+\subsection{YANG list data structures}
 A linked list is an essential data structure in the YANG parser implementation. It is used to hold elements of various types. A generic linked list is defined in the \texttt{lib/yang-data.h} file as follows:
 \small
 \begin{verbatim}
@@ -413,7 +414,64 @@ In order to ease the usage of the lists there is a set of functions with the \te
      _YangNode  *listNode(YangList *e),
 \end{verbatim}
 \normalsize
-which allow to avoid type casting.
+which allow to avoid type casting of the the \texttt{data} field.   
+
+\subsection{Private API functions}
+The private API functions are defined in the \texttt{lib/yang-data.h} file.
+\begin{itemize}
+\item
+\small
+\begin{verbatim}
+YangNode *findYangModuleByName(
+   const char *modulename, char* revision)
+\end{verbatim}
+\normalsize
+returns a pointer to the module with the given name and revision. 
+The \texttt{revision} parameter is optional here and \texttt{NULL} might be used if the revision is not relevant.
+
+\item
+\small
+\begin{verbatim}
+_YangNode *findYangModuleByPrefix(
+   _YangNode *module, const char *prefix)
+\end{verbatim}
+\normalsize
+returns a pointer to the module imported from the given module with the specified prefix.
+
+\item
+\small
+\begin{verbatim}
+_YangNode* findChildNodeByType(
+   _YangNode *nodePtr, YangDecl nodeKind)
+\end{verbatim}
+\normalsize
+returns a pointer to the first child node of the given node with the specified type.
+
+\item
+\small
+\begin{verbatim}
+_YangNode* findChildNodeByTypeAndValue(
+      _YangNode *nodePtr, YangDecl nodeKind, 
+      char* argument)
+\end{verbatim}
+\normalsize
+returns a pointer to the first child node of the given node with the specified type and argument value.
+
+\item
+\small
+\begin{verbatim}
+_YangNode* resolveReference(
+             _YangNode *currentNodePtr, 
+             YangDecl nodeKind, 
+             char* prefix, 
+             char* identifierName)
+\end{verbatim}
+\normalsize
+resolves a reference to the node with the given type and argument value (\texttt{identifierName}) either in the current or imported module specified by the prefix.
+
+
+\end{itemize}
+\section{Semantic analysis}
 
 \section{Smidump driver}
 Smidump is a program which comes with the libsmi library distribution and allows to dump the content of a MIB module in various language formats. In the course of the project the YANG driver for smidump was implemented. It allows to print a YANG module stored in memory back to text format YANG definitions. Currently it is not very useful, because there is no converter from any other format to YANG and the driver might be used only to dump YANG modules. But it might be employed for testing of the YANG parser.
