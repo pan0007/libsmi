@@ -508,6 +508,17 @@ which allow to avoid type casting of the the \texttt{data} field.
 
 \end{itemize}
 \section{Semantic analysis}
+Syntactic analysis constructs a module tree and stores it in memory. 
+Even though the grammar of the module is checked in this phase there are still some kinds of validations that require a complete module tree
+and can not be accomplished here. Semantic analysis performs these validations as we already have the complete module stored in internal data structures.
+
+All functions related semantic analysis are implemented in the file \texttt{lib/yang-check.c}. The function
+\small
+\begin{verbatim}
+     void semanticAnalysis(_YangNode *module)
+\end{verbatim}
+\normalsize
+is the entry point of this phase. It takes as an argument a pointer to a module node that needs to be validated. 
 
 \section{Smidump driver}
 Smidump is a program which comes with the libsmi library distribution and allows to dump the content of a MIB module in various language formats. In the course of the project the YANG driver for smidump was implemented. It allows to print a YANG module stored in memory back to text format YANG definitions. Currently it is not very useful, because there is no converter from any other format to YANG and the driver might be used only to dump YANG modules. But it might be employed for testing of the YANG parser.
