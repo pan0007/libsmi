@@ -605,6 +605,11 @@ after the "uses" statement is instantiated the module looks as follows:
         leaf leaf1 {
             type int8;
         }
+        grouping grouping1 {
+            leaf leaf1 {
+                type int8;
+            }
+        }		
     }
 \end{verbatim}
 \normalsize
@@ -623,12 +628,74 @@ the "refine" statements. That allows not to change the general validation logic 
 \normalsize
 which takes a pointer to the root node of a module subtree as an argument and processes all "uses" statements in that subtree. 
 The function returns \texttt{0} if a circular dependency between groupings has been found while instantiating, and \texttt{1} otherwise.  
-If a grouping itself contains "uses" statements they are instantiated before the grouping instantiation.  
+If a grouping itself contains "uses" statements they are instantiated before the grouping's instantiation.  
 
 For every "refine" statement the target node is resolved and the refinement is accomplished if it's allowed depending on the type of the target node.
 
 
 \subsection{"augment" statement}
+YANG allows a module to insert additional nodes into data models, including both the current module (and its submodules) or an external module.
+The argument of the "augment" statement defines the location in the data model hierarchy where new nodes are inserted.
+In the same way as the "uses" statement, the "augment" statement changes the module's schema tree, what requires some additional validations.
+
+The function
+\small
+\begin{verbatim}
+     void expangAugments(_YangNode* node) 
+\end{verbatim}
+\normalsize
+processes all "augment" statements in a subtree given by the pointer to the root node. For every "augment" statement in a subtree the target node is resolved
+and new child nodes are added to it (this process involves a number of various checks), e.g.
+\small
+\begin{verbatim}
+    submodule augment {
+        belongs-to augment-super {
+            prefix "as";
+        }
+        container interfaces {
+            container entry {}
+        }
+        augment "/as:interfaces/as:entry" {
+            leaf ifIndex {
+                type int8;
+            }
+        }
+    }
+\end{verbatim}
+\normalsize
+when the "augment" statement of the submodule is processed it looks in the following way:
+\small
+\begin{verbatim}
+    submodule augment {
+        belongs-to augment-super {
+            prefix "as";
+        }
+        container interfaces {
+            container entry {
+                leaf ifIndex {
+                    type int8;
+                }			
+            }
+        }
+        augment "/as:interfaces/as:entry" {
+            leaf ifIndex {
+                    type int8;
+            }
+        }
+    }
+\end{verbatim}
+\normalsize
+
+The function
+\small
+\begin{verbatim}
+     _YangNode *resolveXPath(
+                 _YangNode *nodePtr)
+\end{verbatim}
+\normalsize
+finds the target node for the "augment" statement. It takes a node that corresponds to a YANG statement with an argument in the absolute-schema-nodeid or descendant-schema-nodeid form (the augment's argument is given in one of these forms)  
+and returns a pointer to the node in the current or imported module referenced by this argument.
+
 The function
 \small
 \begin{verbatim}
@@ -639,9 +706,64 @@ The function
                int skipMandatory)
 \end{verbatim}
 \normalsize
-is used for "grouping" and "augment" statement instantiations. It copies a subtree given by the pointer \texttt{subtreePtr} to the destination node \texttt{destPtr}.  
-The \texttt{nodeType} argument of the enumerated type \texttt{YangNodeType}
+is used to instantiate "uses" and "augment" statements. It copies a subtree given by the pointer \texttt{subtreePtr} to the destination node \texttt{destPtr}.  
+The \texttt{nodeType} argument of the enumerated \texttt{YangNodeType} type  may have one of the following values:
+\begin{itemize}
+\item \texttt{YANG\_NODE\_EXPANDED\_AUGMENT}- the subtree is created by the "augment" statement;
+\item \texttt{YANG\_NODE\_EXPANDED\_USES} - the subtree is created by the "uses" statement.
+\end{itemize}
+While coping the subtree, the value of the \texttt{nodeType} argument is stored to the \texttt{nodeType} field of the copied \texttt{\_YangNode} structures,
+so that it is possible to distinguish original nodes from the ones that have been added to the module tree by instantiation of some statements. 
+The \texttt{skipMandatory} argument says whether mandatory nodes are allowed to be copied.
 
+\subsection{Identifier uniqueness}
+Identifiers are used to identify different kinds of YANG items by name. Each identifier is valid in a namespace which depends on the type of the YANG item.
+The the namespaces for the different types of identifiers are defined in section 6.2.1 of the specification \cite{bib4}. For the grouping and typedef statements
+there is an additional restriction: if the grouping or typedef is defined at the top level of a YANG module or submodule, their identifiers
+must be unique within the module (in the scope of the grouping and typedef identifier namespaces respectively).
+
+Identifier uniqueness has to be validated after the "uses" and "augment" statements have been instantiated. The function
+\small
+\begin{verbatim}
+    void uniqueNames(_YangNode* nodePtr).
+\end{verbatim}
+\normalsize
+performs this validation. It traverses the module tree and for every node executes the function  
+\small
+\begin{verbatim}
+    int validateNodeUniqueness(_YangNode *nodePtr)
+\end{verbatim}
+\normalsize
+which accomplishes the actual validation of the identifier uniqueness for the given node. 
+
+\subsection{"config" statement}
+According to the specification \cite{bib4}, if a node has "config" "false", then no node underneath it can have "config" set to "true".
+This condition is validated by the function
+\small
+\begin{verbatim}
+     void validateConfigProperties(
+                         _YangNode *nodePtr, 
+                         int isConfigTrue),
+\end{verbatim}
+\normalsize
+where \texttt{nodePtr} is a pointer to the node to validate and \texttt{isConfigTrue} is \texttt{1} if the current config value is true and \texttt{0} otherwise.
+In order to run this validation on a module we need to pass a pointer to the module and \texttt{1} as arguments of the function. 
+
+\subsection{Other validations}
+In addition to the validations mentioned before, there are a lot of others which are specific for different types of YANG language definitions.  
+
+For instance, here is a list of validations that have to be applied to the lists:
+\begin{itemize}
+\item the "key" statement must be present if the list represents configuration;
+\item a leaf identifier must not appear more than once in the key;
+\item each key's leaf identifier must refer to a child leaf of the list;
+\item a leaf that is part of the key can must not be the built-in type "empty";
+\item all key leafs in a list must have the same value for their "config" as the list itself;
+\item each schema node identifier of the "unique" statement must refer to a leaf;
+\item if one of the referenced by the "unique" statement leafs represents configuration data, then all of the referenced leafs must represent configuration data;
+\end{itemize}
+
+\subsection{Not implemented validations}
 
 \section{Smidump driver}
 Smidump is a program which comes with the libsmi library distribution and allows to dump the content of a MIB module in various language formats. In the course of the project the YANG driver for smidump was implemented. It allows to print a YANG module stored in memory back to text format YANG definitions. Currently it is not very useful, because there is no converter from any other format to YANG and the driver might be used only to dump YANG modules. But it might be employed for testing of the YANG parser.
@@ -668,6 +790,7 @@ Pyang \cite{bib8} is a YANG validator, transformator and code generator, written
 \item \url{http://code.google.com/p/pyang/issues/detail?id=14}
 \item \url{http://code.google.com/p/pyang/issues/detail?id=15}
 \item \url{http://code.google.com/p/pyang/issues/detail?id=17}
+\item \url{http://code.google.com/p/pyang/issues/detail?id=18}
 \end{itemize}
 
 \section{Conclusions}
