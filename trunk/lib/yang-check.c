@@ -587,7 +587,7 @@ void initMap() {
 
  /* 
   *  Resolves references to extensions, features, defined types, groupings and identities.
-  *  Validates whether or not threre are circular dependencies between these nodes.
+  *  Validates whether there are no circular dependencies between these nodes.
   */  
 void resolveReferences(_YangNode* node) {
     YangDecl nodeKind = node->export.nodeKind;
