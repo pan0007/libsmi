@@ -40,8 +40,8 @@ When I was starting working on the project there was already an incomplete parse
 
 This project aims at completing the parser for the YANG data modeling language in order to make it compliant with the latest version of the YANG language. At the time when the project was starting the available version of the specification was draft-ietf-netmod-yang-03 \cite{bib3} and it is used as a basis for the entire project.
 
-\section{YANG language concepts}
-The base unit of definition in YANG is a module, which defines a single data model. A module might be partitioned into a number of submodules that contribute definitions to the module. One module might refer other modules' definitions importing them. 
+%\section{YANG language concepts}
+%The base unit of definition in YANG is a module, which defines a single data model. A module might be partitioned into a number of submodules that contribute definitions to the module. One module might refer other modules' definitions importing them. 
 
 \section{Libsmi library}
 The core of the libsmi library allows management applications to access SMI MIB module definitions. 
@@ -183,7 +183,8 @@ The \texttt{parentPtr}  field holds a pointer to the node that represents the st
 
 The \texttt{modulePtr}  field is a reference to the node corresponding to the module statement to which  the current node belongs.
 
-Using the same data structure for all YANG statements makes it possible to process all nodes of the module tree in the same way, which allows to generalize logic for various types of statements and ease the implementation.
+Using the same data structure for representing all YANG statements makes it possible to process all nodes of a module tree in the same way, 
+what allows to generalize the logic of many validations and ease the implementation.
 
 \section{YANG public API functions}
 At the present the public API for handling YANG module definitions is fairly poor. But all required data is stored in private data structures and later on another view on them might be exposed.
@@ -303,7 +304,7 @@ is used.
 The first parameter \texttt{value} of the function is the argument of the YANG statement (e.g., the name of the module for the module statement, an XPath expression for the must, when and augment statements). The second parameter represents the kind of the YANG statement that corresponds to the created node. And the last argument is a pointer to the parent node.
 
 For some module tree nodes the \texttt{info} field of the \texttt{\_YangNode} data structure is initialized here. What data is stored in this field depends on the the type of the YANG statement:
-\subsubsection{'module' and 'submodule' statements}
+\subsubsection{"module" and "submodule" statements}
 the \texttt{info} field refers to the \texttt{\_YangModuleInfo} data structure:
 
 \small
@@ -335,7 +336,7 @@ The purpose of the \texttt{originalModule} field is explained later in this docu
 
 The \texttt{submodules} and \texttt{imports} fields are linked lists of pointers to included submodules and imported modules respectively (YANG list data structures are examined later in this section).
 
-\subsubsection{'if-feature', 'typedef', 'uses', 'base' statements and user-defined extensions}
+\subsubsection{"if-feature", "typedef", "uses", "base" statements and user-defined extensions}
 the \texttt{info} field refers to the \texttt{\_YangIdentifierRefInfo} data structure:
 \small
 \begin{verbatim}
@@ -349,7 +350,7 @@ the \texttt{info} field refers to the \texttt{\_YangIdentifierRefInfo} data stru
 \normalsize
 Everyone of these statements takes an identifier reference as an argument. An identifier reference consists of the prefix of the module (which might be omitted if one refers the element in the current module) and the identifier, which are stored in the \texttt{prefix} and \texttt{identifierName} fields respectively. The field \texttt{resolvedNode} is a pointer to the node in the current or imported module which corresponds to the identifier reference. The \texttt{marker} field is used to detect circular dependencies between module elements.
 
-\subsubsection{'grouping' statement}
+\subsubsection{"grouping" statement}
 the \texttt{info} field refers to the \texttt{\_YangGroupingInfo} data structure:
 \small
 \begin{verbatim}
@@ -360,7 +361,7 @@ the \texttt{info} field refers to the \texttt{\_YangGroupingInfo} data structure
 \normalsize
 This data structure contains only one field, which represents the parsing state of the grouping definition and is used in circular dependency detection.
 
-\subsubsection{'key' and 'unique' statements}
+\subsubsection{"key" and "unique" statements}
 These statements take as an argument a string which contains a space separated list of node identifier references. The \texttt{info} field holds a parsed list of identifier references.
 
 \subsection{Importing and including modules}
@@ -519,6 +520,128 @@ All functions related semantic analysis are implemented in the file \texttt{lib/
 \end{verbatim}
 \normalsize
 is the entry point of this phase. It takes as an argument a pointer to a module node that needs to be validated. 
+
+\subsection{YANG extensions}
+YANG is an extensible language. A module can introduce YANG extensions by using the extension keyword.
+When an extension is used, the extension's keyword is qualified using the prefix with which the extension's module was imported:
+\small
+\begin{verbatim}
+    module "extensions" {
+        namespace "urn:smilib:params:ext";
+        prefix ext;
+
+        extension ext1;
+        extension ext2 {
+            argument param1;
+        }
+
+        ext:ext2 arg1 {
+            ext:ext1;
+        }
+    }
+\end{verbatim}
+\normalsize
+
+All user defined extensions have to be resolved and validated. The argument of the extension has to be present only if it is declared in the extension's definition. 
+
+\subsection{Resolving references}
+The "if-feature", "type", "uses" and "base" YANG statements' argument refers to the "feature", "typedef" (if a built-in type is not used), "grouping" and "identity"
+nodes in the module tree respectively. All these references have to be resolved.   
+
+These statements can refer the definitions either within the current module or one of the imported ones (all imported modules have to be loaded in memory before the semantic analysis phase). 
+A module may be divided into a number of submodules and the external view of the module remains as a single module, regardless of the presence or size of its submodules. 
+Therefor while resolving a reference in a certain module, if the referred node has not been found there, one should search for it in all submodules of the module.
+All these statements must not reference themselves, neither directly nor indirectly through a chain of other statements.
+
+The references are resolved in the function
+\small
+\begin{verbatim}
+    void resolveReferences(_YangNode* node)
+\end{verbatim}
+\normalsize
+implemented in the \texttt{yang-check.c} file. The parameter is a pointer to the root node of the module subtree for which references need to be resolved.
+
+The function resolves references to the "feature", "typedef", "grouping", "base" and "extension" nodes. 
+When the reference is resolved the pointer to the referred node is stored to the \texttt{resolvedNode} field of the \texttt{\_YangIdentifierRefInfo} structure 
+(for these kinds of nodes this data structure is used as the \texttt{info} field of the \texttt{\_YangNode}). 
+The function also validates whether there are no circular dependencies between these statements. The usage of the same data structure for representing
+all YANG statements in a module tree allows to generalize the code of the function for different kinds of statements.  
+
+\subsection{"uses" statement}
+The "uses" statement is used to reference a "grouping" definition. The effect of a "uses" reference to a grouping is that the nodes
+defined by the grouping are copied into the current schema tree, and then updated according to the refinement statements.
+
+This statement changes the module's schema tree and this may result in a number of errors that should be additionally validated, e.g:   
+\small
+\begin{verbatim}
+    module grouping 
+    {
+        namespace "urn:smilib:grouping";
+        prefix g;
+
+        leaf leaf1 {
+            type string;
+        }
+        uses grouping1; 
+        grouping grouping1 {
+            leaf leaf1 {
+                type int8;
+            }
+        }
+    }
+\end{verbatim}
+\normalsize
+after the "uses" statement is instantiated the module looks as follows:
+\small
+\begin{verbatim}
+    module grouping 
+    {
+        namespace "urn:smilib:grouping";
+        prefix g;
+
+        leaf leaf1 {
+            type string;
+        }
+        leaf leaf1 {
+            type int8;
+        }
+    }
+\end{verbatim}
+\normalsize
+where we have two leafs with the same name at the top level of the module, what is not allowed. The uniqueness of identifiers is not the only thing that may be 
+broken (there are some other statements, validation of which depends on where they are in the module tree, e.g., validation of the "config" statement described below in this section).
+
+The "uses" statement may refine some of the properties of each node in the grouping with the "refine" substatement.  The argument of this statement is a a string which
+identifies a node in the grouping. A set of properties which may be refined depends on the type of the target node in the grouping.
+
+Probably the easiest way to handle "uses" statements is to instantiate them by coping nodes defined in the grouping and afterwards refine them according to
+the "refine" statements. That allows not to change the general validation logic of the parser. The instantiation is performed by the function
+\small
+\begin{verbatim}
+     int expandGroupings(_YangNode *node),
+\end{verbatim}
+\normalsize
+which takes a pointer to the root node of a module subtree as an argument and processes all "uses" statements in that subtree. 
+The function returns \texttt{0} if a circular dependency between groupings has been found while instantiating, and \texttt{1} otherwise.  
+If a grouping itself contains "uses" statements they are instantiated before the grouping instantiation.  
+
+For every "refine" statement the target node is resolved and the refinement is accomplished if it's allowed depending on the type of the target node.
+
+
+\subsection{"augment" statement}
+The function
+\small
+\begin{verbatim}
+     void copySubtree(
+               _YangNode *destPtr, 
+               _YangNode *subtreePtr, 
+               YangNodeType nodeType, 
+               int skipMandatory)
+\end{verbatim}
+\normalsize
+is used for "grouping" and "augment" statement instantiations. It copies a subtree given by the pointer \texttt{subtreePtr} to the destination node \texttt{destPtr}.  
+The \texttt{nodeType} argument of the enumerated type \texttt{YangNodeType}
+
 
 \section{Smidump driver}
 Smidump is a program which comes with the libsmi library distribution and allows to dump the content of a MIB module in various language formats. In the course of the project the YANG driver for smidump was implemented. It allows to print a YANG module stored in memory back to text format YANG definitions. Currently it is not very useful, because there is no converter from any other format to YANG and the driver might be used only to dump YANG modules. But it might be employed for testing of the YANG parser.
