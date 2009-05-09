@@ -83,11 +83,10 @@ In order to create a syntactic analyzer for the YANG language bison parser gener
 The file \texttt{lib/parser-yang.y} is a Bison grammar file that contains the grammar of the YANG language in Bison syntax. The first part of this grammar file is Bison declarations where the names of all terminal and nonterminal symbols are declared. The rest of the file implements the YANG ABNF grammar rules defined in the specification. In a Bison grammar, a grammar rule might have an action made up of C statements. Each time the parser recognizes a match for that rule, the action is executed. The associated with the grammar rules C statements accomplish simple validations and construct a representation of the parsing module in memory.
 
 \subsection{Semantic analysis}
-When the syntactic analysis is done we know that the YANG module is grammatically correct and we have the representation of the module in internal data structures, but it still does not mean that the  module is valid. Semantic analysis is the phase in which semantic information is added to tree built in the previous phase. This phase performs semantic checks which require a complete module tree. For instance, these are some examples of validations that have to be applied in this phase:
+When the syntactic analysis is done we know that the YANG module is grammatically correct and we have the representation of the module in internal data structures, but it still does not mean that the  module is valid. Semantic analysis is the phase in which semantic information is added to the tree built in the previous phase. This phase performs semantic checks which require a complete module tree. For instance, these are some examples of validations that have to be applied in this phase:
 \begin{itemize}
 \item resolve all references to user defined types, groupings, extensions, identities and features.
-\item check whether there are no
-  circular dependencies between various module elements such as user-defined types, groupings, identities, features and modules themselves;
+\item check whether there are no circular dependencies between various module elements such as user-defined types, groupings, identities, features and modules themselves;
 \item check whether all identifiers have unique names in the scope of their namespaces;
 \item check whether restrictions applied to user defined types don't create collisions;
 \end{itemize}
@@ -529,12 +528,11 @@ When an extension is used, the extension's keyword is qualified using the prefix
     module "extensions" {
         namespace "urn:smilib:params:ext";
         prefix ext;
-
+        
         extension ext1;
         extension ext2 {
             argument param1;
         }
-
         ext:ext2 arg1 {
             ext:ext1;
         }
@@ -763,7 +761,7 @@ For instance, here is a list of validations that have to be applied to the lists
 \item if one of the referenced by the "unique" statement leafs represents configuration data, then all of the referenced leafs must represent configuration data;
 \end{itemize}
 
-\subsection{Not implemented validations}
+\subsection{Not implemented validations}\label{notimpl}
 There are still several validations that have to be implemented:
 \begin{itemize}
 \item YANG provides a number of various restrictions for types. At the present these restrictions mainly are not checked in the implementation. 
@@ -788,7 +786,7 @@ currently the driver is not very useful. But it may be employed for testing of t
 The file \texttt{tool/dump-yang-sk.c} contains the implementation of the driver, which traverses the entire module node hierarchy and serializes all nodes. The driver is registered with the \texttt{yang-sk} name.
 
 \section{Testing}
-From the very begging of the project  while implementing a new grammar rule or check I have been trying to create a test case that allows to validate that rule or check. 
+From the very beginning of the project  while implementing a new grammar rule or check I have been trying to create a test case that allows to validate that rule or check. 
 Every test case consists of two files: an input file that contains YANG module definitions and the file with the expected output for that test case. 
 In order to test the library on a certain test the smilint tool has to be executed on the test input file and the obtained output file has to be compared to the expected one. 
 All test files are available in the folder 	\texttt{test/yang} of the library infrastructure.
@@ -821,6 +819,21 @@ Here is a list of all reported by me issues:
 \end{itemize}
 
 \section{Conclusions}
+In the course of the project a YANG parser has been implemented.
+The parsing of a YANG module is accomplished over several phases: 
+lexical analysis converts an input sequence of characters of the YANG module into a sequence of atomic language units (tokens);
+syntactic analysis determines whether it is possible to get the sequence of tokens obtained from the previous step by applying 
+rules of the YANG language grammar, and constructs a module representation in memory; and semantic analysis performs 
+validations which require a complete module tree. As of now the first two phases and most of the semantic analysis validations 
+have been completed. Even though the parser validates most of the YANG language definitions,
+there are still some left \ref{notimpl} that have to be implemented in the future.   
+
+While working on the project a number of test cases have been collected for the parser. There is a script available that allows
+to run all test cases automatically. But so far the parser has been tested only by me, which means that there might be yet unknown bugs or features.
+
+A driver for smidump has been implemented that allows to print a YANG module stored in memory back to text format YANG definitions.
+
+On top of that, I have found and reported  a number of issues for the pyang parser implementation.  
 
 \begin{thebibliography}{1}
 \bibitem[1]{bib1} R. Enns. RFC4741 NETCONF Configuration Protocol. Technical report, Network Working Group.,
