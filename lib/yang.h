@@ -72,7 +72,7 @@ typedef enum YangDecl {
     YANG_DECL_EXTENSION                 = 36,                /* extention */
     YANG_DECL_BELONGS_TO                = 37,                /* belongs-to */
     YANG_DECL_YIN_ELEMENT               = 38,                /* yin-element */
-    YANG_DECL_UNKNOWN_STATEMENT         = 39,
+    YANG_DECL_UNKNOWN_STATEMENT         = 39,                /* user-defined extensions */
     YANG_DECL_DESCRIPTION               = 40,
     YANG_DECL_REFERENCE                 = 41,
     YANG_DECL_STATUS                    = 42,

@@ -801,7 +801,20 @@ static Error errors[] = {
     { 2, ERR_INVALID_REFINE, "augmentation-by-mandatory-node", 
     "'%s' node '%s' cannot be refined with '%s'", NULL},
     { 2, ERR_IDENTIFIER_DEFINED_IN_OTHER_SUBMODLE, "duplicated-identifier", 
-      "identifier '%s' is already defined in the submodule '%s'", NULL},     
+      "identifier '%s' is already defined in the submodule '%s'", NULL},
+    { 2, ERR_IGNORED_CONFIG, "ignored-config",
+      "explicit config value is ignored", NULL},
+    { 2, ERR_RESTRICTION_NOT_ALLOWED, "restriction-not-allowed",
+      "restriction %s is not allowed for this base type", NULL},
+    { 2, ERR_CHILD_REQUIRED, "child-required",
+      "a type %s must have at least one %s statement", NULL},
+    { 2, ERR_DUPLICATED, "duplicated",
+      "duplicated %s `%s'", NULL},
+    { 2, ERR_DEFAULT_NOT_ALLOWED, "default-not-allowed",
+      "the type \"empty\" cannot have a default value", NULL},
+    { 2, ERR_INVALID_UNION_TYPE, "invalid_union_type",
+      "the type %s cannot be part of a union", NULL},
+
     { 0, 0, NULL, NULL, NULL }
 };
 

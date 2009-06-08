@@ -14,19 +14,6 @@
 
 #include "yang-data.h"
 
-
-#include "yang-data.h"
-
-
-#include "yang-data.h"
-
-
-#include "yang-data.h"
-
-
-#include "yang-data.h"
-
-
 #include <config.h>
 
 #include "smi.h"
@@ -55,7 +42,6 @@
 #include "error.h"
 #include "data.h"
 #include "util.h"
-#include "yang-data.h"
 #include "yang.h"
 #include "parser-yang.tab.h"
 #include "yang-check.h"
@@ -70,15 +56,15 @@
  */
 extern Parser *currentParser;
 
-const int builtInTypeCount = 20;
+const int builtInTypeCount = 19;
 
 const char* yangBuiltInTypeNames[] = {  "binary",
                                         "bits",
                                         "boolean",
                                         "empty",
                                         "enumeration",
-                                        "float32",
-                                        "float64",
+                                        "decimal64",
+                                        "union",
                                         "identityref",
                                         "instance-identifier",
                                         "int8",
@@ -90,12 +76,11 @@ const char* yangBuiltInTypeNames[] = {  "binary",
                                         "uint8",
                                         "uint16",
                                         "uint32",
-                                        "uint64",
-                                        "union"
+                                        "uint64"
 };
 
 
-YangBuiltInTypes getBuiltInTypeName(const char *name) {
+YangBuiltInType getBuiltInType(const char *name) {
     int i;
     for (i = 0; i <  builtInTypeCount; i++) {
         if (!strcmp(yangBuiltInTypeNames[i], name)) {
@@ -103,6 +88,19 @@ YangBuiltInTypes getBuiltInTypeName(const char *name) {
         }
     }
     return YANG_TYPE_NONE;
+}
+
+
+int isNumericalType(YangBuiltInType type) {
+    return type == YANG_TYPE_INT8 ||
+           type == YANG_TYPE_INT16 ||
+           type == YANG_TYPE_INT32 ||
+           type == YANG_TYPE_INT64 ||
+           type == YANG_TYPE_UINT8 ||
+           type == YANG_TYPE_UINT16 ||
+           type == YANG_TYPE_UINT32 ||
+           type == YANG_TYPE_UINT64 ||
+           type == YANG_TYPE_DECIMAL64;    
 }
 /*
  * YangNode fields setters
@@ -132,35 +130,8 @@ void setReference(_YangNode *nodePtr, char *reference)
 }
 
 /*
- * Uniqueness checks
+ * Node uniqueness validation
  */
-void uniqueConfig(_YangNode *nodePtr)
-{
-    if (nodePtr->export.config == YANG_CONFIG_DEFAULT_FALSE || nodePtr->export.config == YANG_CONFIG_DEFAULT_TRUE) return;
-    smiPrintError(currentParser, ERR_REDEFINED_ELEMENT, "config");    
-}
-
-void uniqueStatus(_YangNode *nodePtr)
-{
-    if (nodePtr->export.status != YANG_STATUS_DEFAULT_CURRENT) {
-        smiPrintError(currentParser, ERR_REDEFINED_ELEMENT, "status");
-    }
-}
-
-void uniqueDescription(_YangNode *nodePtr) 
-{
-    if(nodePtr->export.description) {
-        smiPrintError(currentParser, ERR_REDEFINED_DESCRIPTION, NULL);
-    }
-}
-
-void uniqueReference(_YangNode *nodePtr) 
-{
-    if(nodePtr->export.reference) {
-        smiPrintError(currentParser, ERR_REDEFINED_REFERENCE, NULL);
-    }
-}
-
 void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind) 
 {
     if (findChildNodeByType(nodePtr, nodeKind)) {
@@ -434,7 +405,8 @@ void createIdentifierRef(_YangNode *node, char* prefix, char* ident) {
 
 _YangTypeInfo createTypeInfo(_YangNode *node) {
     _YangTypeInfo *infoPtr = smiMalloc(sizeof(_YangTypeInfo));
-    
+
+    infoPtr->builtinType        = getBuiltInType(node->export.value);
     infoPtr->baseTypeNodePtr    = NULL;
     node->typeInfo              = infoPtr;   
 }

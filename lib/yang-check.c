@@ -15,6 +15,8 @@
 
 #include <config.h>
 
+#include "yang.h"
+
 #include <string.h>
 #include <errno.h>
 #include <ctype.h>
@@ -37,6 +39,7 @@
 #include "yang-check.h"
 #include "parser-smi.tab.h"
 #include "parser-yang.tab.h"
+#include "yang-data.h"
 
 
 #define SMI_EPOCH	631152000	/* 01 Jan 1990 00:00:00 */ 
@@ -593,7 +596,7 @@ void resolveReferences(_YangNode* node) {
     YangDecl nodeKind = node->export.nodeKind;
     if (nodeKind == YANG_DECL_UNKNOWN_STATEMENT ||
         nodeKind == YANG_DECL_IF_FEATURE ||
-        (nodeKind == YANG_DECL_TYPE && getBuiltInTypeName(node->export.value) == YANG_TYPE_NONE) ||
+        (nodeKind == YANG_DECL_TYPE && getBuiltInType(node->export.value) == YANG_TYPE_NONE) ||
         nodeKind == YANG_DECL_USES ||
         nodeKind == YANG_DECL_BASE) {
             _YangIdentifierRefInfo* identifierRef = (_YangIdentifierRefInfo*)node->info;
@@ -777,9 +780,14 @@ void expangAugments(_YangNode* node) {
 /*
  *  From the specification:
  *  If a node has "config" "false", no node underneath it can have "config" set to "true".
+ *  If a "config" statement is present for any node in the input, output or notification tree, it is ignored.
  */
-void validateConfigProperties(_YangNode *nodePtr, int isConfigTrue) {
-    if (!isConfigTrue) {
+void validateConfigProperties(_YangNode *nodePtr, int isConfigTrue, int ignore) {
+    if (ignore) {
+        if (nodePtr->export.nodeKind == YANG_DECL_CONFIG) {
+            smiPrintErrorAtLine(currentParser, ERR_IGNORED_CONFIG, nodePtr->line);
+        }
+    } else if (!isConfigTrue) {
         if (nodePtr->export.config == YANG_CONFIG_TRUE) {
             smiPrintErrorAtLine(currentParser, ERR_INVALID_CONFIG, nodePtr->line, nodePtr->export.value);
             nodePtr->export.config = YANG_CONFIG_DEFAULT_FALSE;
@@ -788,9 +796,15 @@ void validateConfigProperties(_YangNode *nodePtr, int isConfigTrue) {
             nodePtr->export.config = YANG_CONFIG_DEFAULT_FALSE;
         }
     }
+    int ignoreFlag = ignore;
+    if (nodePtr->export.nodeKind == YANG_DECL_INPUT ||
+        nodePtr->export.nodeKind == YANG_DECL_OUTPUT ||
+        nodePtr->export.nodeKind == YANG_DECL_NOTIFICATION) {
+        ignoreFlag = 1;
+    }
     _YangNode *childPtr = NULL;
     for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
-        validateConfigProperties(childPtr, yangIsTrueConf(nodePtr->export.config));
+        validateConfigProperties(childPtr, yangIsTrueConf(nodePtr->export.config), ignoreFlag);
     }
 }
 
@@ -887,8 +901,17 @@ void validateDefaultStatements(_YangNode *nodePtr) {
     YangDecl nodeKind = nodePtr->export.nodeKind;
     if (nodeKind == YANG_DECL_DEFAULT) {
         YangDecl parentKind = nodePtr->parentPtr->export.nodeKind;
+
+        /* An empty type cannot have a default value. */
+        if (parentKind == YANG_DECL_LEAF || parentKind == YANG_DECL_TYPEDEF) {
+            _YangNode* typePtr = findChildNodeByType(nodePtr->parentPtr, YANG_DECL_TYPE);
+            if (getBuiltInType(typePtr->export.value) == YANG_TYPE_EMPTY) {
+                smiPrintErrorAtLine(currentParser, ERR_DEFAULT_NOT_ALLOWED, nodePtr->line);
+            }
+        }
+
+        /* The "default" statement of the leaf and choice MUST NOT be present where "mandatory" is true. */
         if (parentKind == YANG_DECL_CHOICE || parentKind == YANG_DECL_LEAF) {
-            /* The "default" statement of the leaf and choice MUST NOT be present where "mandatory" is true. */
             _YangNode* mandatory = findChildNodeByType(nodePtr->parentPtr, YANG_DECL_MANDATORY);
             if (mandatory && !strcmp(mandatory->export.value, "true")) {
                 smiPrintErrorAtLine(currentParser, ERR_IVALIDE_DEFAULT, nodePtr->line);
@@ -934,6 +957,151 @@ void validateDefaultStatements(_YangNode *nodePtr) {
     }        
 }
 
+void typeHandler(_YangNode* nodePtr) {
+    if (nodePtr->nodeType != YANG_NODE_ORIGINAL) return;
+    /* resolve built-in type */
+    _YangNode* curNode = nodePtr;
+    while (curNode->typeInfo->baseTypeNodePtr != NULL) {
+        curNode = findChildNodeByType(curNode->typeInfo->baseTypeNodePtr, YANG_DECL_TYPE);
+    }
+    nodePtr->typeInfo->builtinType = curNode->typeInfo->builtinType;
+
+    /* Validate union subtypes.
+       A member type can be of any built-in or derived type, except it MUST NOT be one of the built-in types "empty" or "leafref". */
+    if (nodePtr->parentPtr->export.nodeKind == YANG_DECL_TYPE) {        
+        if (nodePtr->typeInfo->builtinType == YANG_TYPE_EMPTY) {
+            smiPrintErrorAtLine(currentParser, ERR_INVALID_UNION_TYPE, nodePtr->line, "empty");
+        } else if (nodePtr->typeInfo->builtinType == YANG_TYPE_LEAFREF) {
+            smiPrintErrorAtLine(currentParser, ERR_INVALID_UNION_TYPE, nodePtr->line, "leafref");
+        }
+    }
+
+    if (!nodePtr->typeInfo->baseTypeNodePtr) {
+        switch (nodePtr->typeInfo->builtinType) {
+            case YANG_TYPE_ENUMERATION:
+                if (!findChildNodeByType(nodePtr, YANG_DECL_ENUM)) {
+                    smiPrintErrorAtLine(currentParser, ERR_CHILD_REQUIRED, nodePtr->line, "enumeration", "enum");
+                }
+                break;
+            case YANG_TYPE_BITS:
+                if (!findChildNodeByType(nodePtr, YANG_DECL_BIT)) {
+                    smiPrintErrorAtLine(currentParser, ERR_CHILD_REQUIRED, nodePtr->line, "bits", "bit");
+                }
+                break;
+            case YANG_TYPE_LEAFREF:
+                if (!findChildNodeByType(nodePtr, YANG_DECL_PATH)) {
+                    smiPrintErrorAtLine(currentParser, ERR_CHILD_REQUIRED, nodePtr->line, "leafref", "path");
+                }
+                break;
+            case YANG_TYPE_IDENTITY:
+                if (!findChildNodeByType(nodePtr, YANG_DECL_BASE)) {
+                    smiPrintErrorAtLine(currentParser, ERR_CHILD_REQUIRED, nodePtr->line, "identityref", "base");
+                }
+                break;
+            case YANG_TYPE_UNION:
+                if (!findChildNodeByType(nodePtr, YANG_DECL_TYPE)) {
+                    smiPrintErrorAtLine(currentParser, ERR_CHILD_REQUIRED, nodePtr->line, "union", "type");
+                }
+                break;
+        }
+    }
+
+    curNode = nodePtr->firstChildPtr;
+    while (curNode) {
+        switch (curNode->export.nodeKind) {
+            case YANG_DECL_RANGE:
+                if (!isNumericalType(nodePtr->typeInfo->builtinType)) {
+                   smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "range");
+                }
+                break;
+            case YANG_DECL_LENGTH:
+                if (nodePtr->typeInfo->builtinType != YANG_TYPE_STRING &&
+                    nodePtr->typeInfo->builtinType != YANG_TYPE_BINARY) {
+                    smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "length");
+                }
+                break;
+            case YANG_DECL_PATTERN:
+                if (nodePtr->typeInfo->builtinType != YANG_TYPE_STRING) {
+                    smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "pattern");
+                }
+                break;
+            case YANG_DECL_ENUM:
+                if (nodePtr->typeInfo->builtinType != YANG_TYPE_ENUMERATION) {
+                    smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "enum");
+                }
+                break;
+            case YANG_DECL_BIT:
+                if (nodePtr->typeInfo->builtinType != YANG_TYPE_BITS) {
+                    smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "bit");
+                }
+                break;
+            case YANG_DECL_PATH:
+                if (nodePtr->typeInfo->builtinType != YANG_TYPE_LEAFREF) {
+                    smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "path");
+                }
+                break;
+            case YANG_DECL_BASE:
+                if (nodePtr->typeInfo->builtinType != YANG_TYPE_IDENTITY) {
+                    smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "base");
+                }
+                break;
+            case YANG_DECL_TYPE:
+                if (nodePtr->typeInfo->builtinType != YANG_TYPE_UNION) {
+                    smiPrintErrorAtLine(currentParser, ERR_RESTRICTION_NOT_ALLOWED, curNode->line, "union");
+                }
+                break;
+            default:
+                break;
+        }
+        curNode = curNode->nextSiblingPtr;
+    }
+}
+
+
+int isInList(int value, int* list) {
+    int i;
+    for (i = 1; i <= list[0]; i++) {
+        if (value == list[i]) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+void _iterate(_YangNode *nodePtr, void* handler, int* nodeKindList) {
+    if (isInList(nodePtr->export.nodeKind, nodeKindList)) {
+        void (*handlerPtr)(_YangNode*);
+        handlerPtr = handler;
+        handlerPtr(nodePtr);
+    }
+    _YangNode *childPtr = NULL;
+    for (childPtr = nodePtr->firstChildPtr; childPtr; childPtr = childPtr->nextSiblingPtr) {
+        _iterate(childPtr, handler, nodeKindList);
+    }
+}
+/*
+ * The last argument should be the YANG_DECL_UNKNOWN value
+ */
+void iterate(_YangNode *nodePtr, void* handler, ...) {
+    va_list ap;
+    va_start(ap, handler);
+
+    int cnt = 0, value;
+    while ((value = va_arg(ap, int)) != YANG_DECL_UNKNOWN) {
+        cnt++;
+    }
+    va_start(ap, handler);
+    int *nodeKindList = smiMalloc((cnt + 1) * sizeof(int));
+    nodeKindList[0] = cnt;
+    cnt = 0;
+    while ((value = va_arg(ap, int)) != YANG_DECL_UNKNOWN) {
+        cnt++;
+        nodeKindList[cnt] = value;
+    }
+    va_end(ap);
+    _iterate(nodePtr, handler, nodeKindList);
+}
+
 void semanticAnalysis(_YangNode *module) {
     getModuleInfo(module)->originalModule = copyModule(module);
     initMap();
@@ -942,7 +1110,12 @@ void semanticAnalysis(_YangNode *module) {
     
     expangAugments(module);
 
-    validateConfigProperties(module, 1);
+    /*
+     *  module - a pointer to the root node of the module;
+     *  1      - current config value;
+     *  0      - don't ignore config value (it may be used for 'input', 'output' or 'notification' nodes, for which the 'config' value should be ignored;
+     */
+    validateConfigProperties(module, 1, 0);
     
     validateDefaultStatements(module);
 
@@ -951,4 +1124,7 @@ void semanticAnalysis(_YangNode *module) {
     uniqueNames(module);
 
     uniqueSubmoduleDefinitions(module);
+
+    /* validate type restrictions */
+    iterate(module, typeHandler, YANG_DECL_TYPE, YANG_DECL_UNKNOWN);
 }

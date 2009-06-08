@@ -698,7 +698,7 @@ contactStatement:	contactKeyword string stmtEnd
 
 descriptionStatement:	descriptionKeyword string stmtEnd
 			{
-                uniqueDescription(topNode());
+                uniqueNodeKind(topNode(), YANG_DECL_DESCRIPTION);
                 setDescription(topNode(), $2);
                 node = addYangNode($2, YANG_DECL_DESCRIPTION, topNode());
 			}
@@ -706,7 +706,7 @@ descriptionStatement:	descriptionKeyword string stmtEnd
 
 referenceStatement:	referenceKeyword string stmtEnd
 			{
-                uniqueReference(topNode());
+                uniqueNodeKind(topNode(), YANG_DECL_REFERENCE);
                 setReference(topNode(), $2);
                 node = addYangNode($2, YANG_DECL_REFERENCE, topNode());
 			}
@@ -714,7 +714,7 @@ referenceStatement:	referenceKeyword string stmtEnd
 
 statusStatement:	statusKeyword status stmtEnd
 			{
-                uniqueStatus(topNode());
+                uniqueNodeKind(topNode(), YANG_DECL_STATUS);
                 setStatus(topNode(), $2);
                 node = addYangNode(statusKeywords[$2], YANG_DECL_STATUS, topNode());
 			}
@@ -927,7 +927,7 @@ identitySubstatement:   baseStatement
 
 typedefStatement:   typedefKeyword identifierStr
                 {
-                    if (getBuiltInTypeName($2) != YANG_TYPE_NONE) {
+                    if (getBuiltInType($2) != YANG_TYPE_NONE) {
                         smiPrintError(thisParserPtr, ERR_ILLEGAL_TYPE_NAME, $2);
                     }
                     node = addYangNode($2, YANG_DECL_TYPEDEF, topNode());
@@ -968,7 +968,7 @@ typeStatement: typeKeyword identifierRef
                {
                     node = addYangNode($2, YANG_DECL_TYPE, topNode());
                     createTypeInfo(node);
-                    if (getBuiltInTypeName($2) == YANG_TYPE_NONE) {
+                    if (getBuiltInType($2) == YANG_TYPE_NONE) {
                         createIdentifierRef(node, getPrefix($2), getIdentifier($2));
                     }
                     pushNode(node);
@@ -1187,6 +1187,11 @@ bitsSpec:   bitsStatement stmtSep
 
 bitsStatement: bitKeyword identifier 
             {
+                node = findChildNodeByTypeAndValue(topNode(), YANG_DECL_BIT, $2);
+                if (node) {
+                    smiPrintError(currentParser, ERR_DUPLICATED, "bit", $2);
+                }
+
                 node = addYangNode($2, YANG_DECL_BIT, topNode());
                 pushNode(node);
             }
@@ -1221,8 +1226,22 @@ positionStatement: positionKeyword string stmtEnd
                 {
                     if (!isNonNegativeInteger($2)) {                            
                         smiPrintError(currentParser, ERR_ARG_VALUE, $2, "non-negative-integer");
-                    }
+                    }                    
                     uniqueNodeKind(topNode(), YANG_DECL_POSITION);
+
+                    /* position values must be unique within the type */
+                    _YangNode* typePtr = topNode()->parentPtr;
+                    _YangNode* childPtr = typePtr->firstChildPtr;
+                    while (childPtr) {
+                        if (childPtr->export.nodeKind == YANG_DECL_BIT) {
+                            _YangNode* positionPtr = findChildNodeByTypeAndValue(childPtr, YANG_DECL_POSITION, $2);
+                            if (positionPtr) {
+                                smiPrintError(currentParser, ERR_DUPLICATED, "position", $2);
+                            }
+                        }
+                        childPtr = childPtr->nextSiblingPtr;
+                    }
+
                     node = addYangNode($2, YANG_DECL_POSITION, topNode());
                 }
                 ;

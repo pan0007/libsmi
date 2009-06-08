@@ -21,15 +21,15 @@
 
 extern const char* yangBuiltInTypeNames[];
 
-typedef enum YangBuiltInTypes {
+typedef enum YangBuiltInType {
     YANG_TYPE_NONE                  = -1,
     YANG_TYPE_BINARY                = 0,
     YANG_TYPE_BITS                  = 1,
     YANG_TYPE_BOOLEAN               = 2,
     YANG_TYPE_EMPTY                 = 3,
     YANG_TYPE_ENUMERATION           = 4,
-    YANG_TYPE_FLOAT32               = 5,
-    YANG_TYPE_FLOAT64               = 6,
+    YANG_TYPE_DECIMAL64             = 5,
+    YANG_TYPE_UNION                 = 6,
     YANG_TYPE_IDENTITY              = 7,
     YANG_TYPE_INSTANCE_IDENTIFIER   = 8,
     YANG_TYPE_INT8                  = 9,
@@ -41,9 +41,8 @@ typedef enum YangBuiltInTypes {
     YANG_TYPE_UINT8                 = 15,
     YANG_TYPE_UINT16                = 16,
     YANG_TYPE_UINT32                = 17,
-    YANG_TYPE_UINT64                = 18,
-    YANG_TYPE_UNION                 = 19
-} YangBuiltInTypes;
+    YANG_TYPE_UINT64                = 18
+} YangBuiltInType;
 
 typedef enum YangNodeType {
     YANG_NODE_ORIGINAL          = 0,
@@ -53,6 +52,7 @@ typedef enum YangNodeType {
 } YangNodeType;
 
 typedef struct _YangTypeInfo {
+    YangBuiltInType   builtinType;
     struct _YangNode   *baseTypeNodePtr;
 } _YangTypeInfo;
 
@@ -60,8 +60,11 @@ typedef struct _YangNode {
     YangNode            export;
     YangNodeType        nodeType;
     void                *info;
-        int             line;
+    int                 line;
+
+    /* used only for type statements */
     struct _YangTypeInfo *typeInfo;
+    
     struct _YangNode  	*firstChildPtr;
     struct _YangNode  	*lastChildPtr;    
     struct _YangNode  	*nextSiblingPtr;
@@ -161,7 +164,9 @@ _YangNode* resolveReference(_YangNode *currentNodePtr, YangDecl nodeKind, char* 
 
 _YangNode *externalModule(_YangNode *importNode);
 
-YangBuiltInTypes getBuiltInTypeName(const char *name);
+YangBuiltInType getBuiltInType(const char *name);
+
+int isNumericalType(YangBuiltInType type);
 /*
  * YangNode fields setters
  */
@@ -174,17 +179,8 @@ void setDescription(_YangNode *nodePtr, char *description);
 void setReference(_YangNode *nodePtr, char *reference);
 
 /*
- * Uniqueness checks
+ * Node uniqueness validation
  */
-
-void uniqueConfig(_YangNode *nodePtr);
-
-void uniqueStatus(_YangNode *nodePtr);
-
-void uniqueDescription(_YangNode *nodePtr);
-
-void uniqueReference(_YangNode *nodePtr);
-
 void uniqueNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
 
 void presenceNodeKind(_YangNode *nodePtr, YangDecl nodeKind);
