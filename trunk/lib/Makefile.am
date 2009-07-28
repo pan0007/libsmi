@@ -46,7 +46,7 @@ parser-smi.c parser-smi.tab.h: parser-smi.y scanner-smi.h parser-smi.h
 parser-sming.c: parser-sming.y scanner-sming.h parser-sming.h
 	$(BISON) --defines=parser-sming.tab.h -t -psming -o parser-sming.c parser-sming.y
 
-parser-yang.c: parser-yang.y scanner-yang.h parser-yang.h
+parser-yang.c parser-yang.tab.h: parser-yang.y scanner-yang.h parser-yang.h
 	$(BISON) --defines=parser-yang.tab.h -t -pyang -o parser-yang.c parser-yang.y
 
 scanner-smi.c: scanner-smi.l scanner-smi.h parser-smi.tab.h
