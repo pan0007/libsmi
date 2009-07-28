@@ -32,7 +32,6 @@
 #include "error.h"
 #include "util.h"
 #include "snprintf.h"
-#include "parser-smi.tab.h"
 
 const char* yandDeclKeyword[] = {   "unknown",
                                     "module",

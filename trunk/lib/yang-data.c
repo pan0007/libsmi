@@ -43,7 +43,6 @@
 #include "data.h"
 #include "util.h"
 #include "yang.h"
-#include "parser-yang.tab.h"
 #include "yang-check.h"
 #include "scanner-yang.h"
 

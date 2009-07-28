@@ -37,8 +37,6 @@
 
 #include "yang-data.h"
 #include "yang-check.h"
-#include "parser-smi.tab.h"
-#include "parser-yang.tab.h"
 #include "yang-data.h"
 
 
