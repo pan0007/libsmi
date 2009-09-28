@@ -826,6 +826,9 @@ importStatement: importKeyword identifierStr
 		{            
             externalModule(topNode());
 			pop();
+            if (topNode() != thisModulePtr) {
+                pop();
+            }
 		}
         ;
 
@@ -844,6 +847,9 @@ includeStatement: includeKeyword identifierStr
             _YangNode *includedModule = externalModule(topNode());
             validateInclude(thisModulePtr, includedModule);
 			pop();
+            if (topNode() != thisModulePtr) {
+                pop();
+            }
 		}
         ;
 
