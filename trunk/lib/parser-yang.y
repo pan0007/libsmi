@@ -1317,6 +1317,8 @@ containerSubstatement:	ifFeatureStatement
                     |
                         dataDefStatement
                     |
+                        groupingStatement
+                    |
                         mustStatement
                     |
                         whenStatement
