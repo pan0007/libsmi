@@ -319,7 +319,8 @@ char* getIdentifier(char* identifierRef) {
 %type <rc>revisionStatement
 %type <rc>optionalRevision
 %type <rc>revisionStatement_0n
-%type <rc>revisionDescriptionStatement
+%type <rc>revisionSubstatement_On
+%type <rc>revisionSubstatement
 %type <rc>importStatement
 %type <rc>includeStatement
 %type <rc>includeStatementBody
@@ -784,28 +785,32 @@ prefixStatement:	prefixKeyword prefix stmtEnd
 
 revisionStatement:	revisionKeyword date ';' 
 			{
-                node = addYangNode($2, YANG_DECL_REVISION, topNode());
-            }
-        |
-                revisionKeyword date
+                            node = addYangNode($2, YANG_DECL_REVISION, topNode());
+                        }
+                |
+                        revisionKeyword date
 			{
-                node = addYangNode($2, YANG_DECL_REVISION, topNode());
-				pushNode(node);
+                            node = addYangNode($2, YANG_DECL_REVISION, topNode());
+                            pushNode(node);
 			}
 			'{'
-                stmtSep
-				revisionDescriptionStatement
+                            stmtSep
+                            revisionSubstatement_On
 			'}'
 			{
-				pop();
+                            pop();
 			}
     ;
 
+revisionSubstatement_On:
+                |
+                   revisionSubstatement_On revisionSubstatement stmtSep
+                ;
 
-revisionDescriptionStatement: 
+revisionSubstatement:
+                        descriptionStatement
                     |
-                            descriptionStatement stmtSep 
-                    ;
+                        referenceStatement;
 
 date: 	dateString
 	{
